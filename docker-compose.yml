@@ -1,0 +1,40 @@
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: damber
+      POSTGRES_PASSWORD: damber
+      POSTGRES_DB: damber
+      # Dev muhitida Docker Desktop portforward orqali kiruvchi ulanish manbasi
+      # 127.0.0.1 sifatida ko'rinmasligi mumkin edi — shuning uchun host auth trust qilinadi.
+      POSTGRES_HOST_AUTH_METHOD: trust
+      LANG: en_US.utf8
+      LC_ALL: en_US.utf8
+    ports:
+      - "5432:5432"
+    volumes:
+      - damber_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U damber"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  api:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      # Konteynerlar orasida host emas, Docker tarmog'idagi xizmat nomi ishlatiladi.
+      DATABASE_URL: postgresql+asyncpg://damber:damber@db:5432/damber
+    ports:
+      - "8000:8000"
+    volumes:
+      - .:/app
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  damber_pgdata:

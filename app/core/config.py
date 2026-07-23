@@ -9,7 +9,7 @@ class Settings(BaseSettings):
     app_name: str = "DamBer API"
     environment: str = "development"
 
-    database_url: str = "postgresql+asyncpg://damber:damber@localhost:5432/damber"
+    database_url: str = "postgresql+asyncpg://damber:damber@127.0.0.1:5432/damber"
 
     jwt_secret: str = "change-me-in-.env"
     jwt_algorithm: str = "HS256"
