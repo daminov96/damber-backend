@@ -10,6 +10,7 @@ from app.core.config import get_settings
 from app.core.db import Base
 from app.modules.listings.models import Listing, ListingPhoto  # noqa: F401 -- Base.metadata ni to'ldirish uchun
 from app.modules.users.models import User  # noqa: F401 -- Base.metadata ni to'ldirish uchun
+from app.modules.wallet.models import WalletTransaction  # noqa: F401 -- Base.metadata ni to'ldirish uchun
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
