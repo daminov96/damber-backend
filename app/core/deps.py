@@ -11,6 +11,7 @@ from app.modules.users import service as users_service
 from app.modules.users.models import User, UserRole
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
+oauth2_scheme_optional = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login", auto_error=False)
 
 
 async def get_current_user(
@@ -24,7 +25,21 @@ async def get_current_user(
     return user
 
 
+async def get_current_user_optional(
+    token: Annotated[str | None, Depends(oauth2_scheme_optional)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> User | None:
+    if not token:
+        return None
+    try:
+        payload = decode_token(token, "access")
+    except UnauthorizedError:
+        return None
+    return await users_service.get_by_id(db, payload["sub"])
+
+
 CurrentUser = Annotated[User, Depends(get_current_user)]
+CurrentUserOptional = Annotated[User | None, Depends(get_current_user_optional)]
 
 
 def require_role(*roles: UserRole):

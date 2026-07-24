@@ -61,6 +61,11 @@ docker compose exec api alembic upgrade head
 
 ## Test
 
+Birinchi marta (test DB yaratish):
 ```bash
-pytest
+docker compose exec db psql -U damber -d damber -c "CREATE DATABASE damber_test;"
+```
+
+```bash
+docker compose exec api pytest
 ```

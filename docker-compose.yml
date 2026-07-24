@@ -32,9 +32,11 @@ services:
       - "8000:8000"
     volumes:
       - .:/app
+      - damber_uploads:/app/uploads
     depends_on:
       db:
         condition: service_healthy
 
 volumes:
   damber_pgdata:
+  damber_uploads:

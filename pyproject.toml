@@ -13,3 +13,5 @@ ignore = ["B008"]  # FastAPI Depends() argument default sifatida qasddan ishlati
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "session"
+asyncio_default_test_loop_scope = "session"
