@@ -89,6 +89,32 @@ async def pay(
     return tx
 
 
+async def credit(
+    db: AsyncSession,
+    user: User,
+    amount: float,
+    label: str,
+    kind: WalletTxKind = WalletTxKind.other,
+    ref: str | None = None,
+) -> WalletTransaction:
+    """Bir tomonlama kredit (masalan Bookings eskrov release/refund) — public endpoint yo'q."""
+    locked_user = await _lock_user(db, user.id)
+    amount = round(amount, 2)
+    locked_user.wallet_balance = round(float(locked_user.wallet_balance) + amount, 2)
+    tx = WalletTransaction(
+        user_id=locked_user.id,
+        label=label,
+        amount=amount,
+        status=WalletTxStatus.success,
+        kind=kind,
+        ref=ref,
+    )
+    db.add(tx)
+    await db.commit()
+    await db.refresh(tx)
+    return tx
+
+
 async def transfer(
     db: AsyncSession,
     from_user: User,
@@ -100,19 +126,5 @@ async def transfer(
 ) -> tuple[WalletTransaction, WalletTransaction]:
     """Faqat ichki chaqiruv uchun (masalan Bookings escrow) — public endpoint yo'q."""
     debit_tx = await pay(db, from_user, amount, label, kind=kind, ref=ref)
-
-    locked_to_user = await _lock_user(db, to_user.id)
-    amount = round(amount, 2)
-    locked_to_user.wallet_balance = round(float(locked_to_user.wallet_balance) + amount, 2)
-    credit_tx = WalletTransaction(
-        user_id=locked_to_user.id,
-        label=label,
-        amount=amount,
-        status=WalletTxStatus.success,
-        kind=kind,
-        ref=ref,
-    )
-    db.add(credit_tx)
-    await db.commit()
-    await db.refresh(credit_tx)
+    credit_tx = await credit(db, to_user, amount, label, kind=kind, ref=ref)
     return debit_tx, credit_tx

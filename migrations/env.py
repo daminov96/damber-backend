@@ -1,16 +1,22 @@
 import asyncio
 from logging.config import fileConfig
 
+from alembic import context
 from sqlalchemy import pool
 from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
-from alembic import context
 from app.core.config import get_settings
 from app.core.db import Base
-from app.modules.listings.models import Listing, ListingPhoto  # noqa: F401 -- Base.metadata ni to'ldirish uchun
+from app.modules.bookings.models import Booking  # noqa: F401 -- Base.metadata ni to'ldirish uchun
+from app.modules.listings.models import (  # noqa: F401 -- Base.metadata ni to'ldirish uchun
+    Listing,
+    ListingPhoto,
+)
 from app.modules.users.models import User  # noqa: F401 -- Base.metadata ni to'ldirish uchun
-from app.modules.wallet.models import WalletTransaction  # noqa: F401 -- Base.metadata ni to'ldirish uchun
+from app.modules.wallet.models import (
+    WalletTransaction,  # noqa: F401 -- Base.metadata ni to'ldirish uchun
+)
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

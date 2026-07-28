@@ -55,6 +55,15 @@ class TestPay:
         assert b2c_user.wallet_balance == 0
 
 
+class TestCredit:
+    async def test_credit_increases_balance_and_creates_tx(
+        self, db_session: AsyncSession, b2c_user: User
+    ):
+        tx = await service.credit(db_session, b2c_user, 5000, "Test kredit")
+        assert tx.amount == 5000
+        assert b2c_user.wallet_balance == 5000
+
+
 class TestTransfer:
     async def test_transfer_updates_both_balances(
         self, db_session: AsyncSession, b2c_user: User, b2b_user: User
