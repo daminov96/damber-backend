@@ -41,13 +41,15 @@ Backend qurilishi bosqichma-bosqich davom etmoqda. Frontend manbasi
   Reklama/promo to'lov oqimi (`TourActivation`) doiradan tashqari —
   Listings uchun ham hali qurilmagan. `region` yana `create_type=False`
   bilan tuzatildi. Spec: `docs/superpowers/specs/2026-07-28-tours-module-design.md`.
-  Hali commit qilinmagan.
+  Commit qilingan va GitHub'ga push qilingan (2026-07-28).
 
-**Keyingi sessiya shu yerdan boshlanishi kerak**: Tours o'zgarishlarini
-ko'rib chiqib commit qilish (foydalanuvchi so'rasa), so'ng **`rent_companies`**
-moduliga o'tish (yengil profil-wrapper, `listings`ga `company_id` FK
-qo'shiladi, RentCar bronlari mavjud `bookings` oqimidan foydalanadi —
-o'zgarishsiz).
+**Keyingi sessiya shu yerdan boshlanishi kerak**: **`rent_companies`**
+moduliga o'tish (yengil profil-wrapper — mustaqil status/moderatsiya/
+booking mantig'i yo'q, `listings.extra`ga `companyId` FK qo'shiladi,
+RentCar bronlari mavjud `bookings` oqimidan o'zgarishsiz foydalanadi;
+tadqiqot allaqachon qilingan — frontend tadqiqotida `RentCompany`
+interfeysi, `myRentCompanies.ts`, `RentCompanyWizard.tsx` batafsil
+o'rganilgan, faqat spec yozish qoldi).
 
 Keyingi bosqichlar (RentCompanies'dan keyin, alohida speclar):
 - Frontend'ni haqiqiy API'ga ulash (`src/lib/api.ts`ni yangilash)
