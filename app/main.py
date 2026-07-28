@@ -8,6 +8,7 @@ from app.core.config import get_settings
 from app.modules.bookings.router import router as bookings_router
 from app.modules.listings.router import router as listings_router
 from app.modules.operators.router import router as operators_router
+from app.modules.tours.router import router as tours_router
 from app.modules.users.router import router as users_router
 from app.modules.wallet.router import router as wallet_router
 
@@ -28,6 +29,7 @@ app.include_router(listings_router)
 app.include_router(wallet_router)
 app.include_router(bookings_router)
 app.include_router(operators_router)
+app.include_router(tours_router)
 
 uploads_dir = Path("uploads")
 uploads_dir.mkdir(exist_ok=True)

@@ -1,0 +1,110 @@
+import enum
+import uuid
+from datetime import datetime
+
+from sqlalchemy import Boolean, DateTime, Enum, Float, ForeignKey, Integer, Numeric, String, func
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+
+from app.core.db import Base
+from app.modules.listings.models import Region
+
+
+class TourDifficulty(enum.StrEnum):
+    Oson = "Oson"
+    Ortacha = "O'rtacha"
+    Qiyin = "Qiyin"
+    Ekstremal = "Ekstremal"
+
+
+class TourSortOption(enum.StrEnum):
+    rating = "rating"
+    newest = "newest"
+    price_asc = "price_asc"
+    price_desc = "price_desc"
+
+
+class TourBookingStatus(enum.StrEnum):
+    pending = "pending"
+    confirmed = "confirmed"
+    rejected = "rejected"
+
+
+class Tour(Base):
+    __tablename__ = "tours"
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    operator_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("tour_operators.id"), index=True)
+    owner_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), index=True)
+
+    name: Mapped[str] = mapped_column(String(200))
+    category: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    duration: Mapped[str] = mapped_column(String(100))
+    nights: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    region: Mapped[Region] = mapped_column(Enum(Region, name="listing_region"), index=True)
+    departure_city: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    meeting_point: Mapped[str] = mapped_column(String(500))
+    difficulty: Mapped[TourDifficulty] = mapped_column(
+        Enum(TourDifficulty, name="tour_difficulty"), default=TourDifficulty.Ortacha
+    )
+    group_size: Mapped[str | None] = mapped_column(String(100), nullable=True)
+
+    price: Mapped[float] = mapped_column(Numeric(14, 2))
+    old_price: Mapped[float] = mapped_column(Numeric(14, 2), default=0)
+    extra_fee: Mapped[float] = mapped_column(Numeric(14, 2), default=0)
+    extra_fee_note: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    price_basis: Mapped[str | None] = mapped_column(String(200), nullable=True)
+
+    airline: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    meal_plan: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    seats_left: Mapped[int | None] = mapped_column(Integer, nullable=True)
+
+    description: Mapped[str] = mapped_column(String(5000))
+    cancellation_policy: Mapped[str | None] = mapped_column(String(1000), nullable=True)
+    video_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
+
+    extra: Mapped[dict] = mapped_column(JSONB, default=dict)
+
+    pending: Mapped[bool] = mapped_column(Boolean, default=True)
+    rating: Mapped[float] = mapped_column(Float, default=0)
+    rating_count: Mapped[int] = mapped_column(Integer, default=0)
+
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    photos: Mapped[list["TourPhoto"]] = relationship(
+        back_populates="tour",
+        cascade="all, delete-orphan",
+        order_by="TourPhoto.position",
+    )
+
+
+class TourPhoto(Base):
+    __tablename__ = "tour_photos"
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    tour_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("tours.id", ondelete="CASCADE"), index=True
+    )
+    url: Mapped[str] = mapped_column(String(500))
+    position: Mapped[int] = mapped_column(Integer, default=0)
+
+    tour: Mapped["Tour"] = relationship(back_populates="photos")
+
+
+class TourBooking(Base):
+    __tablename__ = "tour_bookings"
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    tour_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("tours.id"), index=True)
+    client_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), index=True)
+
+    name: Mapped[str] = mapped_column(String(150))
+    phone: Mapped[str] = mapped_column(String(20))
+    people: Mapped[int] = mapped_column(Integer)
+    total_estimate: Mapped[float] = mapped_column(Numeric(14, 2))
+
+    status: Mapped[TourBookingStatus] = mapped_column(
+        Enum(TourBookingStatus, name="tour_booking_status"), default=TourBookingStatus.pending
+    )
+
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

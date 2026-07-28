@@ -30,18 +30,26 @@ Backend qurilishi bosqichma-bosqich davom etmoqda. Frontend manbasi
   ishlatadi (`create_type=False` — migratsiya faylida qo'lda tuzatildi,
   avtogenerate ikkinchi marta CREATE TYPE qilishga urinadi). Spec:
   `docs/superpowers/specs/2026-07-28-operators-module-design.md`.
+  Commit qilingan.
+- `tours` — operator profiliga bog'langan turlar (`operator_id`),
+  Listings'dagi kabi `pending`/ADMIN approve moderatsiyasi (Operators'dan
+  farqli). Murakkab ichki tuzilmalar (itinerary/stops/priceTiers/
+  departures/faq) `extra` JSONB'da. `TourBooking` — TO'LOVSIZ oddiy
+  so'rov/lead-capture (ism/telefon/odam soni, `total_estimate` faqat
+  ko'rsatish uchun), xost `confirm`/`reject` qiladi — eskrov/wallet
+  ALOQASI YO'Q (frontendda ham yo'q, foydalanuvchi bilan tasdiqlangan).
+  Reklama/promo to'lov oqimi (`TourActivation`) doiradan tashqari —
+  Listings uchun ham hali qurilmagan. `region` yana `create_type=False`
+  bilan tuzatildi. Spec: `docs/superpowers/specs/2026-07-28-tours-module-design.md`.
   Hali commit qilinmagan.
 
-**Keyingi sessiya shu yerdan boshlanishi kerak**: Operators o'zgarishlarini
-ko'rib chiqib commit qilish (foydalanuvchi so'rasa), so'ng **`tours`**
-moduliga o'tish (operator profiliga bog'langan turlar; `TourBooking`
-oddiy so'rov/lead-capture sifatida quriladi — to'lov/eskrov YO'Q,
-chunki frontendda ham yo'q, foydalanuvchi bilan shunday kelishilgan).
-Undan keyin **`rent_companies`** (yengil profil-wrapper, `listings`ga
-`company_id` FK qo'shiladi, RentCar bronlari mavjud `bookings`
-oqimidan foydalanadi — o'zgarishsiz).
+**Keyingi sessiya shu yerdan boshlanishi kerak**: Tours o'zgarishlarini
+ko'rib chiqib commit qilish (foydalanuvchi so'rasa), so'ng **`rent_companies`**
+moduliga o'tish (yengil profil-wrapper, `listings`ga `company_id` FK
+qo'shiladi, RentCar bronlari mavjud `bookings` oqimidan foydalanadi —
+o'zgarishsiz).
 
-Keyingi bosqichlar (Tours/RentCompanies'dan keyin, alohida speclar):
+Keyingi bosqichlar (RentCompanies'dan keyin, alohida speclar):
 - Frontend'ni haqiqiy API'ga ulash (`src/lib/api.ts`ni yangilash)
 - JWT saqlash strategiyasi frontend tomonida (localStorage vs cookie)
 - Reviews, Chat, Admin (to'liq), Plans, Gid (guide) profillari
