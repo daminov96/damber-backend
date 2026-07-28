@@ -19,17 +19,32 @@ Backend qurilishi bosqichma-bosqich davom etmoqda. Frontend manbasi
   asosli qaytarish (flexible/moderate/strict/nonref), band sanalar/
   min_stay/capacity/kesishuv tekshiruvi. Spec:
   `docs/superpowers/specs/2026-07-28-bookings-module-design.md`.
-  60 test o'tdi, curl bilan to'liq oqim (quote→create→confirm→complete
-  va reject→restore) tasdiqlandi. Hali commit qilinmagan.
+  Commit qilingan.
+- `operators` — tur operatori KOMPANIYA profillari (`kind: "guide"`
+  gid profillari doiradan tashqari — keyingi bosqich). Moderatsiyasiz,
+  frontendga mos (Listings'dan farqli — `verified` yo'q). `tin`
+  9-raqamli validatsiya, `license_issued` serverda avtomatik hosil
+  qilinadi, rasm yuklash Listings pattern'ini qayta ishlatadi
+  (`TourOperatorPhoto` + `StoragePort`). `region` ustuni `listings`
+  jadvali yaratgan `listing_region` Postgres enum turini qayta
+  ishlatadi (`create_type=False` — migratsiya faylida qo'lda tuzatildi,
+  avtogenerate ikkinchi marta CREATE TYPE qilishga urinadi). Spec:
+  `docs/superpowers/specs/2026-07-28-operators-module-design.md`.
+  Hali commit qilinmagan.
 
-**Keyingi sessiya shu yerdan boshlanishi kerak**: Bookings o'zgarishlarini
-ko'rib chiqib commit qilish (foydalanuvchi so'rasa), so'ng quyidagi
-ro'yxatdan keyingi bosqichni tanlash.
+**Keyingi sessiya shu yerdan boshlanishi kerak**: Operators o'zgarishlarini
+ko'rib chiqib commit qilish (foydalanuvchi so'rasa), so'ng **`tours`**
+moduliga o'tish (operator profiliga bog'langan turlar; `TourBooking`
+oddiy so'rov/lead-capture sifatida quriladi — to'lov/eskrov YO'Q,
+chunki frontendda ham yo'q, foydalanuvchi bilan shunday kelishilgan).
+Undan keyin **`rent_companies`** (yengil profil-wrapper, `listings`ga
+`company_id` FK qo'shiladi, RentCar bronlari mavjud `bookings`
+oqimidan foydalanadi — o'zgarishsiz).
 
-Keyingi bosqichlar (Bookings'dan keyin, alohida speclar):
+Keyingi bosqichlar (Tours/RentCompanies'dan keyin, alohida speclar):
 - Frontend'ni haqiqiy API'ga ulash (`src/lib/api.ts`ni yangilash)
 - JWT saqlash strategiyasi frontend tomonida (localStorage vs cookie)
-- Tours/Operators/RentCompanies, Reviews, Chat, Admin (to'liq), Plans
+- Reviews, Chat, Admin (to'liq), Plans, Gid (guide) profillari
 
 ## Agent skills
 

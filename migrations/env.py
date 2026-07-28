@@ -13,6 +13,10 @@ from app.modules.listings.models import (  # noqa: F401 -- Base.metadata ni to'l
     Listing,
     ListingPhoto,
 )
+from app.modules.operators.models import (  # noqa: F401 -- Base.metadata ni to'ldirish uchun
+    TourOperator,
+    TourOperatorPhoto,
+)
 from app.modules.users.models import User  # noqa: F401 -- Base.metadata ni to'ldirish uchun
 from app.modules.wallet.models import (
     WalletTransaction,  # noqa: F401 -- Base.metadata ni to'ldirish uchun
