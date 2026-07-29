@@ -127,6 +127,29 @@ class TestOwnership:
         assert resp.status_code == 200
 
 
+class TestDeleteWithTours:
+    async def test_delete_operator_with_tours_raises_conflict(
+        self, client: AsyncClient, b2b_headers: dict
+    ):
+        operator = await _create_operator(client, b2b_headers)
+        tour_payload = {
+            "operator_id": operator["id"],
+            "name": "Test tur",
+            "duration": "3 kun / 2 tun",
+            "region": "Tashkent",
+            "meeting_point": "Toshkent vokzali",
+            "price": 500000,
+            "description": "Test tur tavsifi",
+        }
+        tour_resp = await client.post("/api/v1/tours", json=tour_payload, headers=b2b_headers)
+        assert tour_resp.status_code == 201, tour_resp.text
+
+        delete_resp = await client.delete(
+            f"/api/v1/operators/{operator['id']}", headers=b2b_headers
+        )
+        assert delete_resp.status_code == 409
+
+
 class TestMultipleProfiles:
     async def test_one_user_can_create_multiple_operators(
         self, client: AsyncClient, b2b_headers: dict

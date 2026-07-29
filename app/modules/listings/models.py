@@ -116,6 +116,9 @@ class Listing(Base):
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     owner_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), index=True)
+    company_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("rent_companies.id", ondelete="SET NULL"), nullable=True, index=True
+    )
 
     name: Mapped[str] = mapped_column(String(200))
     type: Mapped[ListingType] = mapped_column(Enum(ListingType, name="listing_type"), index=True)

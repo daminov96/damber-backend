@@ -17,6 +17,10 @@ from app.modules.operators.models import (  # noqa: F401 -- Base.metadata ni to'
     TourOperator,
     TourOperatorPhoto,
 )
+from app.modules.rent_companies.models import (  # noqa: F401 -- Base.metadata ni to'ldirish uchun
+    RentCompany,
+    RentCompanyPhoto,
+)
 from app.modules.tours.models import (  # noqa: F401 -- Base.metadata ni to'ldirish uchun
     Tour,
     TourBooking,

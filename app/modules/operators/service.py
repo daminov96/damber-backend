@@ -6,7 +6,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.core.exceptions import ForbiddenError, NotFoundError
+from app.core.exceptions import ConflictError, ForbiddenError, NotFoundError
 from app.core.storage import StoragePort
 from app.modules.listings.models import Region
 from app.modules.operators.models import (
@@ -16,6 +16,7 @@ from app.modules.operators.models import (
     TourOperatorPhoto,
 )
 from app.modules.operators.schemas import OperatorCreateRequest, OperatorUpdateRequest
+from app.modules.tours.models import Tour
 from app.modules.users.models import User, UserRole
 
 MAX_PHOTOS_PER_OPERATOR = 10
@@ -125,6 +126,11 @@ async def update(
 async def delete(db: AsyncSession, operator_id: uuid.UUID, current_user: User) -> None:
     operator = await _get_or_404(db, operator_id)
     _check_owner_or_admin(operator, current_user)
+    has_tours = (
+        await db.execute(select(Tour.id).where(Tour.operator_id == operator_id).limit(1))
+    ).first()
+    if has_tours:
+        raise ConflictError("Bu operatorga tegishli turlar mavjud — avval ularni o'chiring")
     await db.delete(operator)
     await db.commit()
 

@@ -1,4 +1,4 @@
-## Loyiha holati (2026-07-28)
+## Loyiha holati (2026-07-29)
 
 Backend qurilishi bosqichma-bosqich davom etmoqda. Frontend manbasi
 (lokal, rabochiy stolda): `~/Desktop/projects/damber/front/front2807/damber-front`
@@ -42,19 +42,41 @@ Backend qurilishi bosqichma-bosqich davom etmoqda. Frontend manbasi
   Listings uchun ham hali qurilmagan. `region` yana `create_type=False`
   bilan tuzatildi. Spec: `docs/superpowers/specs/2026-07-28-tours-module-design.md`.
   Commit qilingan va GitHub'ga push qilingan (2026-07-28).
+- `rent_companies` — ijara kompaniya profillari, Operators bilan bir
+  xil: moderatsiyasiz, `tin` majburiy. `license_doc_name` esa Operators'dan
+  farqli — MAJBURIY (wizard fayl talab qiladi). `pickup_zones`/
+  `payment_methods` — kamida 1 ta (Pydantic `Field(min_length=1)`).
+  **`listings` moduliga o'zgartirish**: `Listing.company_id` (ixtiyoriy,
+  `ON DELETE SET NULL`) qo'shildi — kompaniya o'chirilsa mashina
+  saqlanadi, faqat bog'lanish uziladi; xost aniq tanlaydi (frontenddagi
+  "har doim avtomatik bog'lash" xatosi takrorlanmadi), backend
+  egalik+`type==RentCar` tekshiradi. `GET /rent-companies/{id}/listings`
+  qo'shildi (frontendda yo'q edi, izchillik uchun qo'shildi).
+  **Yon-bug tuzatildi**: `operators/service.py::delete()` turlari mavjud
+  operatorni o'chirishda avval xom 500 qaytarardi (`Tour.operator_id`
+  FK `RESTRICT`), endi oldindan tekshirib toza 409 qaytaradi. Spec:
+  `docs/superpowers/specs/2026-07-29-rent-companies-module-design.md`.
+  Commit qilingan va GitHub'ga push qilingan (2026-07-29).
 
-**Keyingi sessiya shu yerdan boshlanishi kerak**: **`rent_companies`**
-moduliga o'tish (yengil profil-wrapper — mustaqil status/moderatsiya/
-booking mantig'i yo'q, `listings.extra`ga `companyId` FK qo'shiladi,
-RentCar bronlari mavjud `bookings` oqimidan o'zgarishsiz foydalanadi;
-tadqiqot allaqachon qilingan — frontend tadqiqotida `RentCompany`
-interfeysi, `myRentCompanies.ts`, `RentCompanyWizard.tsx` batafsil
-o'rganilgan, faqat spec yozish qoldi).
+**Rejalashtirilgan asosiy modullar ketma-ketligi tugadi**: `users` →
+`listings` → `wallet` → `bookings` → `operators` → `tours` →
+`rent_companies` — barchasi tayyor, test qilingan, push qilingan.
 
-Keyingi bosqichlar (RentCompanies'dan keyin, alohida speclar):
-- Frontend'ni haqiqiy API'ga ulash (`src/lib/api.ts`ni yangilash)
-- JWT saqlash strategiyasi frontend tomonida (localStorage vs cookie)
-- Reviews, Chat, Admin (to'liq), Plans, Gid (guide) profillari
+**Keyingi sessiya shu yerdan boshlanishi kerak** — quyidagilardan
+birini tanlash (foydalanuvchi bilan kelishilmagan, ustuvorlik yo'q):
+- **Frontend'ni haqiqiy API'ga ulash** — `src/lib/api.ts`ni localStorage-
+  mock'dan hozirgi 7 ta backend moduliga ulash; JWT saqlash strategiyasi
+  (localStorage vs cookie) shu yerda hal qilinishi kerak
+- **Reviews** — listing/tour/operator uchun sharh-reyting tizimi
+  (`rating`/`rating_count` maydonlari allaqachon bor, lekin hech qayerda
+  yozilmaydi — hozircha statik 0)
+- **Chat** — bron/e'lon bilan bog'liq xabarlashuv (real-time/WebSocket
+  talab qilishi mumkin)
+- **Admin (to'liq)** — hozir faqat `approve` endpointlari bor,
+  to'liq boshqaruv paneli yo'q
+- **Plans** — B2B tarif rejalari (`users.current_plan_id` bor, lekin
+  Plans moduli yo'q)
+- **Gid (guide) profillari** — Operators'dan ataylab ajratilgan qism
 
 ## Agent skills
 

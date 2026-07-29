@@ -9,6 +9,7 @@ from app.core.exceptions import ForbiddenError, NotFoundError
 from app.core.storage import StoragePort
 from app.modules.listings.models import Listing, ListingPhoto, ListingType, Region, SortOption
 from app.modules.listings.schemas import ListingCreateRequest, ListingUpdateRequest
+from app.modules.rent_companies.models import RentCompany
 from app.modules.users.models import User, UserRole
 
 MAX_PHOTOS_PER_LISTING = 10
@@ -28,6 +29,22 @@ async def _get_or_404(db: AsyncSession, listing_id: uuid.UUID) -> Listing:
 def _check_owner_or_admin(listing: Listing, user: User) -> None:
     if listing.owner_id != user.id and user.role != UserRole.ADMIN:
         raise ForbiddenError("Bu amal uchun ruxsatingiz yo'q")
+
+
+async def _validate_company(
+    db: AsyncSession, company_id: uuid.UUID, current_user: User, listing_type: ListingType
+) -> None:
+    company = (
+        await db.execute(select(RentCompany).where(RentCompany.id == company_id))
+    ).scalar_one_or_none()
+    if not company:
+        raise NotFoundError("Ijara kompaniyasi topilmadi")
+    if company.owner_id != current_user.id:
+        raise ForbiddenError("Faqat o'z ijara kompaniyangizga e'lon bog'lay olasiz")
+    if listing_type != ListingType.RentCar:
+        raise HTTPException(
+            400, detail="company_id faqat RentCar turidagi e'lonlarga biriktiriladi"
+        )
 
 
 def _visible_to(listing: Listing, user: User | None) -> bool:
@@ -107,6 +124,8 @@ async def list_mine(db: AsyncSession, owner: User) -> list[Listing]:
 
 
 async def create(db: AsyncSession, owner: User, payload: ListingCreateRequest) -> Listing:
+    if payload.company_id is not None:
+        await _validate_company(db, payload.company_id, owner, payload.type)
     listing = Listing(**payload.model_dump(), owner_id=owner.id, verified=False, paused=False)
     db.add(listing)
     await db.commit()
@@ -119,6 +138,9 @@ async def update(
 ) -> Listing:
     listing = await _get_or_404(db, listing_id)
     _check_owner_or_admin(listing, current_user)
+    if payload.company_id is not None:
+        listing_type = payload.type or listing.type
+        await _validate_company(db, payload.company_id, current_user, listing_type)
     for field, value in payload.model_dump(exclude_unset=True).items():
         setattr(listing, field, value)
     await db.commit()

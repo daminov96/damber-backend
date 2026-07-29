@@ -24,6 +24,7 @@ class ListingCreateRequest(BaseModel):
     description: str
     license: str | None = None
     license_expiry: date | None = None
+    company_id: uuid.UUID | None = None
     extra: dict = Field(default_factory=dict)
 
     @field_validator("amenities")
@@ -44,6 +45,7 @@ class ListingUpdateRequest(BaseModel):
     license: str | None = None
     license_expiry: date | None = None
     discount: int | None = None
+    company_id: uuid.UUID | None = None
     extra: dict | None = None
 
     @field_validator("amenities")
@@ -67,6 +69,7 @@ class ListingOut(BaseModel):
 
     id: uuid.UUID
     owner_id: uuid.UUID
+    company_id: uuid.UUID | None
     name: str
     type: ListingType
     region: Region
