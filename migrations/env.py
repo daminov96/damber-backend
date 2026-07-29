@@ -25,6 +25,7 @@ from app.modules.rent_companies.models import (  # noqa: F401 -- Base.metadata n
     RentCompany,
     RentCompanyPhoto,
 )
+from app.modules.reviews.models import Review  # noqa: F401 -- Base.metadata ni to'ldirish uchun
 from app.modules.tours.models import (  # noqa: F401 -- Base.metadata ni to'ldirish uchun
     Tour,
     TourBooking,

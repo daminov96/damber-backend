@@ -70,20 +70,35 @@ Backend qurilishi bosqichma-bosqich davom etmoqda. Frontend manbasi
   ham operators'dagi tuzatilgan pattern (bog'liq turlar bo'lsa 409).
   Spec: `docs/superpowers/specs/2026-07-29-guides-module-design.md`.
   Commit qilingan va GitHub'ga push qilingan (2026-07-29).
+- `reviews` — FAQAT Listing va Tour uchun (Operators/Guides/RentCompanies'da
+  sharh tushunchasi frontendda mutlaqo yo'q — kengaytirilmadi). Polimorfik
+  nishon Tours'dagi `operator_id`/`guide_id` naqshi bilan bir xil:
+  `listing_id`/`tour_id` (DB CHECK — aynan bittasi). **Listing sharhi —
+  HAQIQIY bron-gating**: `booking_id` majburiy, `status == completed`,
+  egalik tekshiriladi, bitta bronga bitta sharh (frontendda niyat aniq —
+  dashboard "Baholash" tugmasi — lekin hech qayerda majburiy qilinmagan
+  edi, backend'da haqiqiy qilindi). **Tur sharhi — bronga bog'lanmaydi**
+  (`TourBooking`da "yakunlandi" tushunchasi umuman yo'q), `verified`
+  doim `False`, bitta user — bitta tur — bitta sharh. **`rating`/
+  `rating_count` endi serverda haqiqiy qayta hisoblanadi**
+  (`listings/service.py::recompute_rating()`, `tours/service.py::recompute_rating()`
+  — Reviews nishon holatini to'g'ridan-to'g'ri o'zgartirmaydi, tor
+  funksiya orqali chaqiradi) — frontendda bu hech qachon bo'lmagan
+  ("jonli ko'ringan, aslida statik" maydon, Guide'dagi `certified`
+  bilan bir xil holat edi). Spec:
+  `docs/superpowers/specs/2026-07-29-reviews-module-design.md`.
+  Commit qilingan va GitHub'ga push qilingan (2026-07-29).
 
 **Rejalashtirilgan asosiy modullar ketma-ketligi tugadi**: `users` →
 `listings` → `wallet` → `bookings` → `operators` → `tours` →
-`rent_companies` → `guides` — barchasi tayyor, test qilingan, push
-qilingan (124 test).
+`rent_companies` → `guides` → `reviews` — barchasi tayyor, test
+qilingan, push qilingan (138 test).
 
 Foydalanuvchi bilan kelishilgan: **frontend'ni real API'ga ulashdan
 oldin qolgan barcha backend qismlari to'liq tugatiladi.**
 
 **Keyingi sessiya shu yerdan boshlanishi kerak** — quyidagilardan
 birini tanlash (ustuvorlik hali kelishilmagan):
-- **Reviews** — listing/tour/operator/guide uchun sharh-reyting tizimi
-  (`rating`/`rating_count` maydonlari hamma joyda bor, lekin hech
-  qayerda yozilmaydi — hozircha statik 0)
 - **Chat** — bron/e'lon bilan bog'liq xabarlashuv (real-time/WebSocket
   talab qilishi mumkin)
 - **Admin (to'liq)** — hozir faqat `approve` endpointlari bor,
@@ -92,7 +107,7 @@ birini tanlash (ustuvorlik hali kelishilmagan):
   Plans moduli yo'q)
 
 Shulardan keyin: **frontend'ni haqiqiy API'ga ulash** — `src/lib/api.ts`ni
-localStorage-mock'dan hozirgi 8 ta backend moduliga ulash; JWT saqlash
+localStorage-mock'dan hozirgi 9 ta backend moduliga ulash; JWT saqlash
 strategiyasi (localStorage vs cookie) shu bosqichda hal qilinadi.
 
 ## Agent skills

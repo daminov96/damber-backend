@@ -10,6 +10,7 @@ from app.core.storage import StoragePort
 from app.modules.guides.models import Guide
 from app.modules.listings.models import Region
 from app.modules.operators.models import TourOperator
+from app.modules.reviews.models import Review
 from app.modules.tours.models import Tour, TourBooking, TourBookingStatus, TourPhoto, TourSortOption
 from app.modules.tours.schemas import TourBookingCreateRequest, TourCreateRequest, TourUpdateRequest
 from app.modules.users.models import User, UserRole
@@ -220,6 +221,15 @@ async def delete_photo(
         raise NotFoundError("Rasm topilmadi")
     await storage.delete(photo.url)
     await db.delete(photo)
+    await db.commit()
+
+
+async def recompute_rating(db: AsyncSession, tour_id: uuid.UUID) -> None:
+    stmt = select(func.avg(Review.stars), func.count(Review.id)).where(Review.tour_id == tour_id)
+    avg, count = (await db.execute(stmt)).one()
+    tour = await _get_or_404(db, tour_id)
+    tour.rating = round(float(avg), 2) if avg is not None else 0.0
+    tour.rating_count = count
     await db.commit()
 
 

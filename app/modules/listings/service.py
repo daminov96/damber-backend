@@ -10,6 +10,7 @@ from app.core.storage import StoragePort
 from app.modules.listings.models import Listing, ListingPhoto, ListingType, Region, SortOption
 from app.modules.listings.schemas import ListingCreateRequest, ListingUpdateRequest
 from app.modules.rent_companies.models import RentCompany
+from app.modules.reviews.models import Review
 from app.modules.users.models import User, UserRole
 
 MAX_PHOTOS_PER_LISTING = 10
@@ -229,4 +230,15 @@ async def delete_photo(
         raise NotFoundError("Rasm topilmadi")
     await storage.delete(photo.url)
     await db.delete(photo)
+    await db.commit()
+
+
+async def recompute_rating(db: AsyncSession, listing_id: uuid.UUID) -> None:
+    stmt = select(func.avg(Review.stars), func.count(Review.id)).where(
+        Review.listing_id == listing_id
+    )
+    avg, count = (await db.execute(stmt)).one()
+    listing = await _get_or_404(db, listing_id)
+    listing.rating = round(float(avg), 2) if avg is not None else 0.0
+    listing.rating_count = count
     await db.commit()
