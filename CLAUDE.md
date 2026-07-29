@@ -57,26 +57,43 @@ Backend qurilishi bosqichma-bosqich davom etmoqda. Frontend manbasi
   FK `RESTRICT`), endi oldindan tekshirib toza 409 qaytaradi. Spec:
   `docs/superpowers/specs/2026-07-29-rent-companies-module-design.md`.
   Commit qilingan va GitHub'ga push qilingan (2026-07-29).
+- `guides` — yakka gid profillari, **Operators bilan bitta jadvalda
+  emas** (frontendda `TourOperator.kind:"guide"` sifatida bitta
+  jadvalda, lekin bu — sparse-table antipattern bo'lardi, deyarli
+  umumiy maydon yo'q — shuning uchun mustaqil `guides` jadvali
+  tanlandi). `certified` mijozdan qabul qilinmaydi — serverda
+  `license_doc_name is not None`dan hisoblanadi. **`tours` moduliga
+  o'zgartirish**: `Tour.operator_id` endi ixtiyoriy, yangi ixtiyoriy
+  `Tour.guide_id` qo'shildi, DB CHECK constraint — aynan bittasi
+  to'ldirilgan bo'lishi shart (polimorfik egalik, autogenerate
+  buni avtomatik aniqlamaydi — qo'lda qo'shildi). Guide o'chirishda
+  ham operators'dagi tuzatilgan pattern (bog'liq turlar bo'lsa 409).
+  Spec: `docs/superpowers/specs/2026-07-29-guides-module-design.md`.
+  Commit qilingan va GitHub'ga push qilingan (2026-07-29).
 
 **Rejalashtirilgan asosiy modullar ketma-ketligi tugadi**: `users` →
 `listings` → `wallet` → `bookings` → `operators` → `tours` →
-`rent_companies` — barchasi tayyor, test qilingan, push qilingan.
+`rent_companies` → `guides` — barchasi tayyor, test qilingan, push
+qilingan (124 test).
+
+Foydalanuvchi bilan kelishilgan: **frontend'ni real API'ga ulashdan
+oldin qolgan barcha backend qismlari to'liq tugatiladi.**
 
 **Keyingi sessiya shu yerdan boshlanishi kerak** — quyidagilardan
-birini tanlash (foydalanuvchi bilan kelishilmagan, ustuvorlik yo'q):
-- **Frontend'ni haqiqiy API'ga ulash** — `src/lib/api.ts`ni localStorage-
-  mock'dan hozirgi 7 ta backend moduliga ulash; JWT saqlash strategiyasi
-  (localStorage vs cookie) shu yerda hal qilinishi kerak
-- **Reviews** — listing/tour/operator uchun sharh-reyting tizimi
-  (`rating`/`rating_count` maydonlari allaqachon bor, lekin hech qayerda
-  yozilmaydi — hozircha statik 0)
+birini tanlash (ustuvorlik hali kelishilmagan):
+- **Reviews** — listing/tour/operator/guide uchun sharh-reyting tizimi
+  (`rating`/`rating_count` maydonlari hamma joyda bor, lekin hech
+  qayerda yozilmaydi — hozircha statik 0)
 - **Chat** — bron/e'lon bilan bog'liq xabarlashuv (real-time/WebSocket
   talab qilishi mumkin)
 - **Admin (to'liq)** — hozir faqat `approve` endpointlari bor,
   to'liq boshqaruv paneli yo'q
 - **Plans** — B2B tarif rejalari (`users.current_plan_id` bor, lekin
   Plans moduli yo'q)
-- **Gid (guide) profillari** — Operators'dan ataylab ajratilgan qism
+
+Shulardan keyin: **frontend'ni haqiqiy API'ga ulash** — `src/lib/api.ts`ni
+localStorage-mock'dan hozirgi 8 ta backend moduliga ulash; JWT saqlash
+strategiyasi (localStorage vs cookie) shu bosqichda hal qilinadi.
 
 ## Agent skills
 

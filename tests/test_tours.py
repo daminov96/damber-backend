@@ -27,6 +27,18 @@ TOUR_PAYLOAD = {
     "description": "Test tur tavsifi",
 }
 
+GUIDE_PAYLOAD = {
+    "name": "Aziz Karimov",
+    "languages": ["O'zbek", "Rus"],
+    "region": "Tashkent",
+    "service_areas": ["Toshkent"],
+    "specialties": ["Tarixiy turlar"],
+    "hourly_price": 100000,
+    "phone": "998911111111",
+    "email": "guide@test.local",
+    "description": "Tajribali gid, tarixiy joylar bo'yicha mutaxassis, 10 yildan ortiq tajriba.",
+}
+
 
 async def _register(client: AsyncClient, phone: str, role: str = "B2B") -> dict:
     resp = await client.post(
@@ -62,6 +74,13 @@ async def _create_tour(
 async def _approve_tour(client: AsyncClient, tour_id: str, admin_headers: dict) -> dict:
     resp = await client.post(f"/api/v1/admin/tours/{tour_id}/approve", headers=admin_headers)
     assert resp.status_code == 200, resp.text
+    return resp.json()
+
+
+async def _create_guide(client: AsyncClient, b2b_headers: dict, **overrides) -> dict:
+    payload = {**GUIDE_PAYLOAD, **overrides}
+    resp = await client.post("/api/v1/guides", json=payload, headers=b2b_headers)
+    assert resp.status_code == 201, resp.text
     return resp.json()
 
 
@@ -318,3 +337,50 @@ class TestBookingInquiry:
         resp = await client.get(f"/api/v1/tours/{tour['id']}/bookings", headers=b2b_headers)
         assert resp.status_code == 200
         assert resp.json()["total"] == 1
+
+
+class TestGuideOwnership:
+    async def test_create_with_guide_id_succeeds_and_copies_owner(
+        self, client: AsyncClient, b2b_headers: dict
+    ):
+        guide = await _create_guide(client, b2b_headers)
+        resp = await client.post(
+            "/api/v1/tours",
+            json={**TOUR_PAYLOAD, "guide_id": guide["id"]},
+            headers=b2b_headers,
+        )
+        assert resp.status_code == 201, resp.text
+        body = resp.json()
+        assert body["guide_id"] == guide["id"]
+        assert body["operator_id"] is None
+        assert body["owner_id"] == guide["owner_id"]
+
+    async def test_both_operator_and_guide_id_returns_422(
+        self, client: AsyncClient, b2b_headers: dict
+    ):
+        operator = await _create_operator(client, b2b_headers)
+        guide = await _create_guide(client, b2b_headers)
+
+        resp = await client.post(
+            "/api/v1/tours",
+            json={**TOUR_PAYLOAD, "operator_id": operator["id"], "guide_id": guide["id"]},
+            headers=b2b_headers,
+        )
+        assert resp.status_code == 422
+
+    async def test_neither_operator_nor_guide_id_returns_422(
+        self, client: AsyncClient, b2b_headers: dict
+    ):
+        resp = await client.post("/api/v1/tours", json=TOUR_PAYLOAD, headers=b2b_headers)
+        assert resp.status_code == 422
+
+    async def test_foreign_guide_returns_403(self, client: AsyncClient, b2b_headers: dict):
+        guide = await _create_guide(client, b2b_headers)
+        other_headers = await _register(client, "998977200002", role="B2B")
+
+        resp = await client.post(
+            "/api/v1/tours",
+            json={**TOUR_PAYLOAD, "guide_id": guide["id"]},
+            headers=other_headers,
+        )
+        assert resp.status_code == 403

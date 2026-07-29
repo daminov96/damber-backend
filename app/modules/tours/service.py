@@ -7,6 +7,7 @@ from sqlalchemy.orm import selectinload
 
 from app.core.exceptions import ConflictError, ForbiddenError, NotFoundError
 from app.core.storage import StoragePort
+from app.modules.guides.models import Guide
 from app.modules.listings.models import Region
 from app.modules.operators.models import TourOperator
 from app.modules.tours.models import Tour, TourBooking, TourBookingStatus, TourPhoto, TourSortOption
@@ -32,6 +33,14 @@ async def _get_operator(db: AsyncSession, operator_id: uuid.UUID) -> TourOperato
     if not operator:
         raise NotFoundError("Operator topilmadi")
     return operator
+
+
+async def _get_guide(db: AsyncSession, guide_id: uuid.UUID) -> Guide:
+    stmt = select(Guide).where(Guide.id == guide_id)
+    guide = (await db.execute(stmt)).scalar_one_or_none()
+    if not guide:
+        raise NotFoundError("Gid topilmadi")
+    return guide
 
 
 def _check_owner_or_admin(tour: Tour, user: User) -> None:
@@ -110,14 +119,22 @@ async def list_mine(db: AsyncSession, owner: User) -> list[Tour]:
 
 
 async def create(db: AsyncSession, current_user: User, payload: TourCreateRequest) -> Tour:
-    operator = await _get_operator(db, payload.operator_id)
-    if operator.owner_id != current_user.id:
-        raise ForbiddenError("Faqat o'z operator profilingizga tur qo'sha olasiz")
+    if payload.operator_id is not None:
+        operator = await _get_operator(db, payload.operator_id)
+        if operator.owner_id != current_user.id:
+            raise ForbiddenError("Faqat o'z operator profilingizga tur qo'sha olasiz")
+        owner_id = operator.owner_id
+    else:
+        guide = await _get_guide(db, payload.guide_id)
+        if guide.owner_id != current_user.id:
+            raise ForbiddenError("Faqat o'z gid profilingizga tur qo'sha olasiz")
+        owner_id = guide.owner_id
 
     tour = Tour(
-        **payload.model_dump(exclude={"operator_id"}),
-        operator_id=operator.id,
-        owner_id=operator.owner_id,
+        **payload.model_dump(exclude={"operator_id", "guide_id"}),
+        operator_id=payload.operator_id,
+        guide_id=payload.guide_id,
+        owner_id=owner_id,
         pending=True,
     )
     db.add(tour)

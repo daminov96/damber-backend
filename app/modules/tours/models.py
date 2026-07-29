@@ -2,7 +2,18 @@ import enum
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, Enum, Float, ForeignKey, Integer, Numeric, String, func
+from sqlalchemy import (
+    Boolean,
+    CheckConstraint,
+    DateTime,
+    Enum,
+    Float,
+    ForeignKey,
+    Integer,
+    Numeric,
+    String,
+    func,
+)
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -33,8 +44,21 @@ class TourBookingStatus(enum.StrEnum):
 class Tour(Base):
     __tablename__ = "tours"
 
+    __table_args__ = (
+        CheckConstraint(
+            "(operator_id IS NOT NULL AND guide_id IS NULL) OR "
+            "(operator_id IS NULL AND guide_id IS NOT NULL)",
+            name="ck_tours_exactly_one_owner_profile",
+        ),
+    )
+
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
-    operator_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("tour_operators.id"), index=True)
+    operator_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("tour_operators.id"), nullable=True, index=True
+    )
+    guide_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("guides.id"), nullable=True, index=True
+    )
     owner_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), index=True)
 
     name: Mapped[str] = mapped_column(String(200))

@@ -1,14 +1,16 @@
 import uuid
 from datetime import datetime
+from typing import Self
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from app.modules.listings.models import Region
 from app.modules.tours.models import TourBookingStatus, TourDifficulty
 
 
 class TourCreateRequest(BaseModel):
-    operator_id: uuid.UUID
+    operator_id: uuid.UUID | None = None
+    guide_id: uuid.UUID | None = None
     name: str
     category: str | None = None
     duration: str
@@ -34,6 +36,12 @@ class TourCreateRequest(BaseModel):
     video_url: str | None = None
 
     extra: dict = Field(default_factory=dict)
+
+    @model_validator(mode="after")
+    def check_exactly_one_owner_profile(self) -> Self:
+        if (self.operator_id is None) == (self.guide_id is None):
+            raise ValueError("operator_id yoki guide_id'dan aynan bittasi ko'rsatilishi kerak")
+        return self
 
 
 class TourUpdateRequest(BaseModel):
@@ -75,7 +83,8 @@ class TourOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: uuid.UUID
-    operator_id: uuid.UUID
+    operator_id: uuid.UUID | None
+    guide_id: uuid.UUID | None
     owner_id: uuid.UUID
     name: str
     category: str | None
