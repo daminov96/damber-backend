@@ -13,6 +13,7 @@ class WalletTxKind(enum.StrEnum):
     promo = "promo"
     booking = "booking"
     refund = "refund"
+    plan = "plan"
     other = "other"
 
 

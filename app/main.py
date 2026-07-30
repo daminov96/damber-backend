@@ -9,6 +9,7 @@ from app.modules.bookings.router import router as bookings_router
 from app.modules.guides.router import router as guides_router
 from app.modules.listings.router import router as listings_router
 from app.modules.operators.router import router as operators_router
+from app.modules.plans.router import router as plans_router
 from app.modules.rent_companies.router import router as rent_companies_router
 from app.modules.reviews.router import router as reviews_router
 from app.modules.tours.router import router as tours_router
@@ -33,6 +34,7 @@ app.include_router(wallet_router)
 app.include_router(bookings_router)
 app.include_router(guides_router)
 app.include_router(operators_router)
+app.include_router(plans_router)
 app.include_router(rent_companies_router)
 app.include_router(reviews_router)
 app.include_router(tours_router)

@@ -88,11 +88,26 @@ Backend qurilishi bosqichma-bosqich davom etmoqda. Frontend manbasi
   bilan bir xil holat edi). Spec:
   `docs/superpowers/specs/2026-07-29-reviews-module-design.md`.
   Commit qilingan va GitHub'ga push qilingan (2026-07-29).
+- `plans` — B2B tarif rejalari, **statik Python katalog** (`plans/catalog.py`
+  — DB jadvali emas, `PROMO_CODES` naqshiga o'xshab, 4 ta qat'iy tarif:
+  `free`/`standard`/`business`/`premium`, frontend `data/plans.ts`dan
+  so'z-ma-so'z ko'chirilgan). **Cheklovlar (photoLimit/videoLimit/e'lon
+  soni) kuchga kiritilmaydi** — frontendda bu hatto UI darajasida ham
+  amalga oshirilmagan (Review'dagi bron-gating'dan farqli — bu yerda
+  hech qanday niyat izi yo'q), shuning uchun o'ylab topilmadi, faqat
+  katalog API orqali chiqariladi. `PlanPurchase` audit jadvali qo'shildi
+  (frontendda yo'q — moliyaviy operatsiya uchun tarix kerak).
+  `WalletTxKind`ga `plan` qiymati qo'shildi (frontend buni umumiy
+  `"promo"` bilan chalkashtiradi). Yillik narx — saqlanadigan maydon
+  emas, `round(oylik*12*0.84)` hisoblash. Muddat/yangilanish yo'q
+  (frontendda umuman yo'q). Spec:
+  `docs/superpowers/specs/2026-07-30-plans-module-design.md`.
+  Commit qilingan va GitHub'ga push qilingan (2026-07-30).
 
 **Rejalashtirilgan asosiy modullar ketma-ketligi tugadi**: `users` →
 `listings` → `wallet` → `bookings` → `operators` → `tours` →
-`rent_companies` → `guides` → `reviews` — barchasi tayyor, test
-qilingan, push qilingan (138 test).
+`rent_companies` → `guides` → `reviews` → `plans` — barchasi tayyor,
+test qilingan, push qilingan (150 test).
 
 Foydalanuvchi bilan kelishilgan: **frontend'ni real API'ga ulashdan
 oldin qolgan barcha backend qismlari to'liq tugatiladi.**
@@ -103,11 +118,9 @@ birini tanlash (ustuvorlik hali kelishilmagan):
   talab qilishi mumkin)
 - **Admin (to'liq)** — hozir faqat `approve` endpointlari bor,
   to'liq boshqaruv paneli yo'q
-- **Plans** — B2B tarif rejalari (`users.current_plan_id` bor, lekin
-  Plans moduli yo'q)
 
 Shulardan keyin: **frontend'ni haqiqiy API'ga ulash** — `src/lib/api.ts`ni
-localStorage-mock'dan hozirgi 9 ta backend moduliga ulash; JWT saqlash
+localStorage-mock'dan hozirgi 10 ta backend moduliga ulash; JWT saqlash
 strategiyasi (localStorage vs cookie) shu bosqichda hal qilinadi.
 
 ## Agent skills
