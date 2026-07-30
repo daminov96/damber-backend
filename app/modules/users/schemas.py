@@ -1,4 +1,5 @@
 import uuid
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
@@ -10,7 +11,7 @@ class RegisterRequest(BaseModel):
     surname: str
     phone: str
     password: str = Field(min_length=6)
-    role: UserRole = UserRole.B2C
+    role: Literal[UserRole.B2C, UserRole.B2B] = UserRole.B2C
     email: EmailStr | None = None
     biz_category: str | None = None
 
@@ -40,3 +41,4 @@ class UserOut(BaseModel):
     current_plan_id: str | None
     city: str | None
     avatar_url: str | None
+    is_banned: bool

@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 
 from app.core.config import get_settings
 from app.core.db import Base
+from app.modules.admin.models import AdminAuditLog  # noqa: F401 -- Base.metadata ni to'ldirish uchun
 from app.modules.bookings.models import Booking  # noqa: F401 -- Base.metadata ni to'ldirish uchun
 from app.modules.guides.models import (  # noqa: F401 -- Base.metadata ni to'ldirish uchun
     Guide,

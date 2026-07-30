@@ -7,6 +7,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.db import get_db
 from app.core.deps import CurrentUser, CurrentUserOptional, require_role
 from app.core.storage import StoragePort, get_storage
+from app.modules.admin import service as admin_service
+from app.modules.admin.models import AuditAction
+from app.modules.admin.schemas import RejectRequest
 from app.modules.listings.models import Region
 from app.modules.tours import service
 from app.modules.tours.models import TourSortOption
@@ -116,10 +119,26 @@ async def delete_tour_photo(
 @router.post("/admin/tours/{tour_id}/approve", response_model=TourOut)
 async def approve_tour(
     tour_id: uuid.UUID,
-    _admin: Annotated[User, Depends(require_role(UserRole.ADMIN))],
+    admin: Annotated[User, Depends(require_role(UserRole.ADMIN))],
     db: AsyncSession = Depends(get_db),
 ):
-    return await service.approve(db, tour_id)
+    tour = await service.approve(db, tour_id)
+    await admin_service.log_action(db, admin, AuditAction.tour_approve, "tour", tour_id)
+    return tour
+
+
+@router.post("/admin/tours/{tour_id}/reject", response_model=TourOut)
+async def reject_tour(
+    tour_id: uuid.UUID,
+    payload: RejectRequest,
+    admin: Annotated[User, Depends(require_role(UserRole.ADMIN))],
+    db: AsyncSession = Depends(get_db),
+):
+    tour = await service.reject(db, tour_id, payload.reason)
+    await admin_service.log_action(
+        db, admin, AuditAction.tour_reject, "tour", tour_id, payload.reason
+    )
+    return tour
 
 
 @router.post("/tours/{tour_id}/bookings", response_model=TourBookingOut, status_code=201)

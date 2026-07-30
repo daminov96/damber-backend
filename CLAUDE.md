@@ -1,4 +1,4 @@
-## Loyiha holati (2026-07-29)
+## Loyiha holati (2026-07-30)
 
 Backend qurilishi bosqichma-bosqich davom etmoqda. Frontend manbasi
 (lokal, rabochiy stolda): `~/Desktop/projects/damber/front/front2807/damber-front`
@@ -103,25 +103,49 @@ Backend qurilishi bosqichma-bosqich davom etmoqda. Frontend manbasi
   (frontendda umuman yo'q). Spec:
   `docs/superpowers/specs/2026-07-30-plans-module-design.md`.
   Commit qilingan va GitHub'ga push qilingan (2026-07-30).
+- `admin` — to'liq admin panel. Frontend tadqiqoti shuni ko'rsatdi:
+  "Admin panel"ning katta qismi dekorativ (Trafik tahlili qattiq
+  kodlangan, 2FA/Xavfsizlik soxta, "Adminlar jamoasi" autentifikatsiyaga
+  bog'lanmagan) — bular DOIRADAN TASHQARI qoldirildi. **Xavfsizlik
+  teshigi topildi va tuzatildi**: `POST /auth/register`da `role`
+  cheklovsiz edi — istalgan kishi `role:"ADMIN"` yuborib to'liq admin
+  huquqi ola olardi (`RegisterRequest.role: Literal[B2C, B2B]` bilan
+  yopildi). **Moderatsiyada "rad etish" haqiqiy soft-status sifatida
+  qurildi** — `Listing`/`Tour`ga `rejected`/`reject_reason` qo'shildi
+  (frontendda rad etish o'chirish bilan aralashtirilgan edi, bu yerda
+  Bookings'dagi `reject_reason` patterni takrorlandi); tasdiqlangan
+  yozuvni rad etishga urinish 409 qaytaradi. `User.is_banned`/
+  `banned_reason` — yangi, backend-only (frontendda yo'q, lekin "to'liq
+  panel" uchun zarur) — `get_current_user()` va `authenticate()`da
+  kuchga kiritiladi (bloklangan user login qila olmaydi, mavjud token
+  ham darhol ishlamay qoladi). `invite-admin` — "Adminlar jamoasi"ning
+  ishlaydigan versiyasi (haqiqiy foydalanuvchi yaratadi, `role=ADMIN`
+  bilan). `AdminAuditLog` — frontenddagi `addLog()` naqshining server
+  tomon versiyasi, `admin/service.py::log_action()` boshqa modullar
+  (`listings`/`tours` router'lari) tomonidan chaqiriladi — `admin.service`
+  faqat modellarga bog'liq (`users`/`listings`/`tours`/`bookings`),
+  boshqa `.service`larga bog'liq emas — aylanma import yo'q. Dashboard
+  statistikasi haqiqiy agregatsiya (`func.count`/`func.sum`). Spec:
+  `docs/superpowers/specs/2026-07-30-admin-module-design.md`.
+  Commit qilinmagan/push qilinmagan hali (foydalanuvchi so'raganda).
 
 **Rejalashtirilgan asosiy modullar ketma-ketligi tugadi**: `users` →
 `listings` → `wallet` → `bookings` → `operators` → `tours` →
-`rent_companies` → `guides` → `reviews` → `plans` — barchasi tayyor,
-test qilingan, push qilingan (150 test).
+`rent_companies` → `guides` → `reviews` → `plans` → `admin` — barchasi
+tayyor, test qilingan (169 test, hammasi o'tdi), curl smoke-test bilan
+tekshirilgan.
 
 Foydalanuvchi bilan kelishilgan: **frontend'ni real API'ga ulashdan
 oldin qolgan barcha backend qismlari to'liq tugatiladi.**
 
-**Keyingi sessiya shu yerdan boshlanishi kerak** — quyidagilardan
-birini tanlash (ustuvorlik hali kelishilmagan):
+**Keyingi sessiya shu yerdan boshlanishi kerak**:
+- Admin modulini commit + push qilish (agar hali qilinmagan bo'lsa)
 - **Chat** — bron/e'lon bilan bog'liq xabarlashuv (real-time/WebSocket
-  talab qilishi mumkin)
-- **Admin (to'liq)** — hozir faqat `approve` endpointlari bor,
-  to'liq boshqaruv paneli yo'q
-
-Shulardan keyin: **frontend'ni haqiqiy API'ga ulash** — `src/lib/api.ts`ni
-localStorage-mock'dan hozirgi 10 ta backend moduliga ulash; JWT saqlash
-strategiyasi (localStorage vs cookie) shu bosqichda hal qilinadi.
+  talab qilishi mumkin) — qolgan yagona rejalashtirilmagan modul
+- Shulardan keyin: **frontend'ni haqiqiy API'ga ulash** —
+  `src/lib/api.ts`ni localStorage-mock'dan hozirgi 11 ta backend
+  moduliga ulash; JWT saqlash strategiyasi (localStorage vs cookie)
+  shu bosqichda hal qilinadi.
 
 ## Agent skills
 

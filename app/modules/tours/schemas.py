@@ -108,6 +108,8 @@ class TourOut(BaseModel):
     video_url: str | None
     extra: dict
     pending: bool
+    rejected: bool
+    reject_reason: str | None
     rating: float
     rating_count: int
     created_at: datetime

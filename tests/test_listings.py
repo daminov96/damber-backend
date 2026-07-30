@@ -148,6 +148,64 @@ class TestSearch:
         assert "Other Listing" not in names
 
 
+class TestModeration:
+    async def test_admin_reject_sets_reason_and_hides_from_search(
+        self, client: AsyncClient, b2b_headers: dict, admin_headers: dict
+    ):
+        listing = await _create_listing(client, b2b_headers, name="Rejectable Dacha")
+
+        resp = await client.post(
+            f"/api/v1/admin/listings/{listing['id']}/reject",
+            json={"reason": "Rasmlar sifatsiz"},
+            headers=admin_headers,
+        )
+        assert resp.status_code == 200, resp.text
+        body = resp.json()
+        assert body["rejected"] is True
+        assert body["reject_reason"] == "Rasmlar sifatsiz"
+
+        search_resp = await client.get("/api/v1/listings", params={"region": "Tashkent"})
+        names = [item["name"] for item in search_resp.json()["items"]]
+        assert "Rejectable Dacha" not in names
+
+    async def test_reject_requires_admin(
+        self, client: AsyncClient, b2b_headers: dict
+    ):
+        listing = await _create_listing(client, b2b_headers)
+
+        resp = await client.post(
+            f"/api/v1/admin/listings/{listing['id']}/reject",
+            json={"reason": "Sabab"},
+            headers=b2b_headers,
+        )
+        assert resp.status_code == 403
+
+    async def test_cannot_reject_already_verified_listing(
+        self, client: AsyncClient, b2b_headers: dict, admin_headers: dict
+    ):
+        listing = await _create_listing(client, b2b_headers)
+        await _approve(client, listing["id"], admin_headers)
+
+        resp = await client.post(
+            f"/api/v1/admin/listings/{listing['id']}/reject",
+            json={"reason": "Kech qoldi"},
+            headers=admin_headers,
+        )
+        assert resp.status_code == 409
+
+    async def test_admin_can_pause_others_listing(
+        self, client: AsyncClient, b2b_headers: dict, admin_headers: dict
+    ):
+        listing = await _create_listing(client, b2b_headers)
+        await _approve(client, listing["id"], admin_headers)
+
+        resp = await client.post(
+            f"/api/v1/listings/{listing['id']}/pause", headers=admin_headers
+        )
+        assert resp.status_code == 200, resp.text
+        assert resp.json()["paused"] is True
+
+
 class TestPhotos:
     async def test_upload_and_delete_photo(
         self, client: AsyncClient, b2b_headers: dict, tmp_path

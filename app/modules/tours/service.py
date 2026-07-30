@@ -171,6 +171,37 @@ async def approve(db: AsyncSession, tour_id: uuid.UUID) -> Tour:
     return tour
 
 
+async def reject(db: AsyncSession, tour_id: uuid.UUID, reason: str) -> Tour:
+    tour = await _get_or_404(db, tour_id)
+    if not tour.pending:
+        raise ConflictError(
+            "Tasdiqlangan turni rad etib bo'lmaydi — avval to'xtatib qo'ying"
+        )
+    tour.rejected = True
+    tour.reject_reason = reason
+    await db.commit()
+    await db.refresh(tour, attribute_names=["photos"])
+    return tour
+
+
+async def list_pending(db: AsyncSession, page: int, page_size: int) -> tuple[list[Tour], int]:
+    conditions = [Tour.pending.is_(True), Tour.rejected.is_(False)]
+
+    count_stmt = select(func.count()).select_from(Tour).where(*conditions)
+    total = (await db.execute(count_stmt)).scalar_one()
+
+    stmt = (
+        select(Tour)
+        .options(selectinload(Tour.photos))
+        .where(*conditions)
+        .order_by(Tour.created_at.asc())
+        .offset((page - 1) * page_size)
+        .limit(page_size)
+    )
+    items = list((await db.execute(stmt)).scalars().all())
+    return items, total
+
+
 def _validate_photo_file(file: UploadFile) -> None:
     if file.content_type not in ALLOWED_PHOTO_CONTENT_TYPES:
         raise HTTPException(400, detail="Faqat jpg/png/webp formatlariga ruxsat berilgan")

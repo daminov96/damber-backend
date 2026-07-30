@@ -90,6 +90,8 @@ class Tour(Base):
     extra: Mapped[dict] = mapped_column(JSONB, default=dict)
 
     pending: Mapped[bool] = mapped_column(Boolean, default=True)
+    rejected: Mapped[bool] = mapped_column(Boolean, default=False)
+    reject_reason: Mapped[str | None] = mapped_column(String(500), nullable=True)
     rating: Mapped[float] = mapped_column(Float, default=0)
     rating_count: Mapped[int] = mapped_column(Integer, default=0)
 

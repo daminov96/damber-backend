@@ -215,6 +215,53 @@ class TestEditAndDelete:
         assert delete_resp.status_code == 204
 
 
+class TestModeration:
+    async def test_admin_reject_sets_reason_and_hides_from_search(
+        self, client: AsyncClient, b2b_headers: dict, admin_headers: dict
+    ):
+        operator = await _create_operator(client, b2b_headers)
+        tour = await _create_tour(client, b2b_headers, operator["id"], name="Rejectable Tour")
+
+        resp = await client.post(
+            f"/api/v1/admin/tours/{tour['id']}/reject",
+            json={"reason": "Ma'lumot to'liq emas"},
+            headers=admin_headers,
+        )
+        assert resp.status_code == 200, resp.text
+        body = resp.json()
+        assert body["rejected"] is True
+        assert body["reject_reason"] == "Ma'lumot to'liq emas"
+
+        search_resp = await client.get("/api/v1/tours")
+        names = [item["name"] for item in search_resp.json()["items"]]
+        assert "Rejectable Tour" not in names
+
+    async def test_reject_requires_admin(self, client: AsyncClient, b2b_headers: dict):
+        operator = await _create_operator(client, b2b_headers)
+        tour = await _create_tour(client, b2b_headers, operator["id"])
+
+        resp = await client.post(
+            f"/api/v1/admin/tours/{tour['id']}/reject",
+            json={"reason": "Sabab"},
+            headers=b2b_headers,
+        )
+        assert resp.status_code == 403
+
+    async def test_cannot_reject_already_approved_tour(
+        self, client: AsyncClient, b2b_headers: dict, admin_headers: dict
+    ):
+        operator = await _create_operator(client, b2b_headers)
+        tour = await _create_tour(client, b2b_headers, operator["id"])
+        await _approve_tour(client, tour["id"], admin_headers)
+
+        resp = await client.post(
+            f"/api/v1/admin/tours/{tour['id']}/reject",
+            json={"reason": "Kech qoldi"},
+            headers=admin_headers,
+        )
+        assert resp.status_code == 409
+
+
 class TestPhotos:
     async def test_upload_and_delete_photo(
         self, client: AsyncClient, b2b_headers: dict, tmp_path

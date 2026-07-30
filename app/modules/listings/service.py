@@ -5,7 +5,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.core.exceptions import ForbiddenError, NotFoundError
+from app.core.exceptions import ConflictError, ForbiddenError, NotFoundError
 from app.core.storage import StoragePort
 from app.modules.listings.models import Listing, ListingPhoto, ListingType, Region, SortOption
 from app.modules.listings.schemas import ListingCreateRequest, ListingUpdateRequest
@@ -165,8 +165,7 @@ async def delete(
 
 async def toggle_pause(db: AsyncSession, listing_id: uuid.UUID, current_user: User) -> Listing:
     listing = await _get_or_404(db, listing_id)
-    if listing.owner_id != current_user.id:
-        raise ForbiddenError("Faqat egasi to'xtata oladi")
+    _check_owner_or_admin(listing, current_user)
     listing.paused = not listing.paused
     await db.commit()
     await db.refresh(listing, attribute_names=["photos"])
@@ -179,6 +178,37 @@ async def approve(db: AsyncSession, listing_id: uuid.UUID) -> Listing:
     await db.commit()
     await db.refresh(listing, attribute_names=["photos"])
     return listing
+
+
+async def reject(db: AsyncSession, listing_id: uuid.UUID, reason: str) -> Listing:
+    listing = await _get_or_404(db, listing_id)
+    if listing.verified:
+        raise ConflictError(
+            "Tasdiqlangan listingni rad etib bo'lmaydi — avval to'xtatib qo'ying"
+        )
+    listing.rejected = True
+    listing.reject_reason = reason
+    await db.commit()
+    await db.refresh(listing, attribute_names=["photos"])
+    return listing
+
+
+async def list_pending(db: AsyncSession, page: int, page_size: int) -> tuple[list[Listing], int]:
+    conditions = [Listing.verified.is_(False), Listing.rejected.is_(False)]
+
+    count_stmt = select(func.count()).select_from(Listing).where(*conditions)
+    total = (await db.execute(count_stmt)).scalar_one()
+
+    stmt = (
+        select(Listing)
+        .options(selectinload(Listing.photos))
+        .where(*conditions)
+        .order_by(Listing.created_at.asc())
+        .offset((page - 1) * page_size)
+        .limit(page_size)
+    )
+    items = list((await db.execute(stmt)).scalars().all())
+    return items, total
 
 
 def _validate_photo_file(file: UploadFile) -> None:

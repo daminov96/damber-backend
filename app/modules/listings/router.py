@@ -7,6 +7,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.db import get_db
 from app.core.deps import CurrentUser, CurrentUserOptional, require_role
 from app.core.storage import StoragePort, get_storage
+from app.modules.admin import service as admin_service
+from app.modules.admin.models import AuditAction
+from app.modules.admin.schemas import RejectRequest
 from app.modules.listings import service
 from app.modules.listings.models import ListingType, Region, SortOption
 from app.modules.listings.schemas import (
@@ -128,7 +131,23 @@ async def delete_listing_photo(
 @router.post("/admin/listings/{listing_id}/approve", response_model=ListingOut)
 async def approve_listing(
     listing_id: uuid.UUID,
-    _admin: Annotated[User, Depends(require_role(UserRole.ADMIN))],
+    admin: Annotated[User, Depends(require_role(UserRole.ADMIN))],
     db: AsyncSession = Depends(get_db),
 ):
-    return await service.approve(db, listing_id)
+    listing = await service.approve(db, listing_id)
+    await admin_service.log_action(db, admin, AuditAction.listing_approve, "listing", listing_id)
+    return listing
+
+
+@router.post("/admin/listings/{listing_id}/reject", response_model=ListingOut)
+async def reject_listing(
+    listing_id: uuid.UUID,
+    payload: RejectRequest,
+    admin: Annotated[User, Depends(require_role(UserRole.ADMIN))],
+    db: AsyncSession = Depends(get_db),
+):
+    listing = await service.reject(db, listing_id, payload.reason)
+    await admin_service.log_action(
+        db, admin, AuditAction.listing_reject, "listing", listing_id, payload.reason
+    )
+    return listing

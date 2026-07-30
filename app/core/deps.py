@@ -22,6 +22,8 @@ async def get_current_user(
     user = await users_service.get_by_id(db, payload["sub"])
     if not user:
         raise UnauthorizedError("Foydalanuvchi topilmadi")
+    if user.is_banned:
+        raise ForbiddenError("Hisobingiz bloklangan")
     return user
 
 

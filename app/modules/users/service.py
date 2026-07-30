@@ -3,7 +3,7 @@ import re
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.exceptions import ConflictError, UnauthorizedError
+from app.core.exceptions import ConflictError, ForbiddenError, UnauthorizedError
 from app.core.security import create_token, hash_password, verify_password
 from app.modules.users.models import User
 from app.modules.users.schemas import LoginRequest, RegisterRequest, TokenPair
@@ -57,6 +57,8 @@ async def authenticate(db: AsyncSession, payload: LoginRequest) -> User:
     user = await _find_by_identifier(db, payload.identifier)
     if not user or not verify_password(payload.password, user.password_hash):
         raise UnauthorizedError("Login yoki parol noto'g'ri")
+    if user.is_banned:
+        raise ForbiddenError("Hisobingiz bloklangan")
     return user
 
 

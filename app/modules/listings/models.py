@@ -132,6 +132,8 @@ class Listing(Base):
 
     verified: Mapped[bool] = mapped_column(Boolean, default=False)
     paused: Mapped[bool] = mapped_column(Boolean, default=False)
+    rejected: Mapped[bool] = mapped_column(Boolean, default=False)
+    reject_reason: Mapped[str | None] = mapped_column(String(500), nullable=True)
 
     capacity: Mapped[int] = mapped_column(Integer)
     amenities: Mapped[list[str]] = mapped_column(ARRAY(String(50)), default=list)

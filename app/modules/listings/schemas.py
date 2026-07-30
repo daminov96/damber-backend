@@ -79,6 +79,8 @@ class ListingOut(BaseModel):
     rating_count: int
     verified: bool
     paused: bool
+    rejected: bool
+    reject_reason: str | None
     capacity: int
     amenities: list[str]
     description: str
