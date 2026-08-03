@@ -20,6 +20,7 @@ class PlanDefinition:
     id: PlanId
     name: str
     price: float
+    listing_limit: int
     photo_limit: int
     video_limit: int
     video_size_mb: int
@@ -33,6 +34,7 @@ PLAN_CATALOG: dict[PlanId, PlanDefinition] = {
         id=PlanId.free,
         name="Bepul",
         price=0,
+        listing_limit=1,
         photo_limit=10,
         video_limit=0,
         video_size_mb=0,
@@ -49,6 +51,7 @@ PLAN_CATALOG: dict[PlanId, PlanDefinition] = {
         id=PlanId.standard,
         name="Standart",
         price=150_000,
+        listing_limit=3,
         photo_limit=20,
         video_limit=1,
         video_size_mb=30,
@@ -66,6 +69,7 @@ PLAN_CATALOG: dict[PlanId, PlanDefinition] = {
         id=PlanId.business,
         name="Biznes",
         price=300_000,
+        listing_limit=7,
         photo_limit=30,
         video_limit=2,
         video_size_mb=50,
@@ -84,6 +88,7 @@ PLAN_CATALOG: dict[PlanId, PlanDefinition] = {
         id=PlanId.premium,
         name="Premium VIP",
         price=450_000,
+        listing_limit=15,
         photo_limit=50,
         video_limit=3,
         video_size_mb=100,

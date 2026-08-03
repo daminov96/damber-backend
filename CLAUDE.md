@@ -1,9 +1,14 @@
-## Loyiha holati (2026-07-30)
+## Loyiha holati (2026-08-03)
 
 Backend qurilishi bosqichma-bosqich davom etmoqda. Frontend manbasi
-(lokal, rabochiy stolda): `~/Desktop/projects/damber/front/front2807/damber-front`
-(Next.js, hozircha to'liq localStorage-mock, haqiqiy API chaqiruvi yo'q —
-`src/lib/api.ts` va Zustand store'lar backend contract'ini belgilaydi).
+(lokal, rabochiy stolda) — **eng yangi versiya**:
+`~/Desktop/projects/damber/front/front0308/damber-front` (haqiqiy git repo,
+`github.com/daminov96/damber-front`, 117+ commit; avvalgi `front2807`
+versiyasi endi eskirgan — backend shu versiyadan kelib chiqib qurilgan
+edi, 2026-08-03 sessiyasida `front0308`ga to'liq solishtirib moslashtirildi,
+pastga qarang). Next.js, hozircha to'liq localStorage-mock, haqiqiy API
+chaqiruvi yo'q — `src/lib/api.ts` va Zustand store'lar backend contract'ini
+belgilaydi.
 
 **Tayyor modullar:**
 - `users` — register/login/me, JWT, rollar (B2C/B2B/ADMIN)
@@ -127,25 +132,117 @@ Backend qurilishi bosqichma-bosqich davom etmoqda. Frontend manbasi
   boshqa `.service`larga bog'liq emas — aylanma import yo'q. Dashboard
   statistikasi haqiqiy agregatsiya (`func.count`/`func.sum`). Spec:
   `docs/superpowers/specs/2026-07-30-admin-module-design.md`.
+  Commit qilingan va GitHub'ga push qilingan (2026-07-30).
+- `chat` — listing egasi bilan xabarlashuv. Frontend tadqiqoti (`src/store/chat.ts`,
+  `ChatThread.tsx`, `ListingChat.tsx`, `ClientChats.tsx`, `HostChats.tsx`)
+  shuni ko'rsatdi: bu loyihadagi eng kam sonli **dekorativ bo'lmagan**
+  funksiyalardan biri — to'liq ishlaydi, real navigatsiyaga ulangan, o'z
+  test to'plami bor. **WebSocket qo'shilmadi** — frontend hech qachon
+  haqiqiy real-time talab qilmagan (yagona "jonlilik" — `setTimeout(2000ms)`
+  soxta bot javobi, faqat demo uchun); oddiy REST yetarli deb topildi.
+  Suhbat frontendga mos ravishda **client+owner juftligi bilan aniqlanadi**
+  (`UniqueConstraint(client_id, owner_id)`), listingga bog'lanmagan (bitta
+  egaga turli listinglar haqida yozsa ham bitta thread) — lekin `listing_id`
+  ixtiyoriy kelib chiqish konteksti sifatida saqlanadi. **`owner_id` klientdan
+  qabul qilinmaydi** — `POST /chat/conversations` faqat `listing_id` oladi,
+  owner shu listingdan serverda hosil qilinadi (Wallet/Reviews'dagi
+  "server-side authoritative" naqshi). **Xabar modeli "haqiqiy" qilindi**:
+  frontendda `{sender, text, time}` (ID yo'q, chin timestamp yo'q, o'qilgan/
+  o'qilmagan thread darajasida) — backend'da har xabarda `id`/`created_at`/
+  **xabar darajasidagi** `read_at` (Reviews'dagi `rating`/`certified` bilan
+  bir xil "jonli ko'ringan, aslida qo'pol narsani to'g'irlash" naqshi).
+  **Sezgir ma'lumot filtri** (`detectSensitiveData` — frontendda faqat
+  client tomonda, bypass qilinardi) serverda ham kuchga kiritildi — telefon/
+  karta raqami reglar bilan aniqlansa 400 qaytaradi. O'z listingiga yozish —
+  409. Faqat ishtirokchilar ko'ra oladi, **ADMIN uchun ham maxsus bypass
+  yo'q** (frontendda adminning chatga aloqasi umuman yo'q edi). Turlar/
+  operatorlar/gidlarga ulanmagan (frontendda faqat Listing domenida). Spec:
+  `docs/superpowers/specs/2026-07-30-chat-module-design.md`.
   Commit qilinmagan/push qilinmagan hali (foydalanuvchi so'raganda).
 
-**Rejalashtirilgan asosiy modullar ketma-ketligi tugadi**: `users` →
+**Rejalashtirilgan asosiy modullar ketma-ketligi to'liq tugadi**: `users` →
 `listings` → `wallet` → `bookings` → `operators` → `tours` →
-`rent_companies` → `guides` → `reviews` → `plans` → `admin` — barchasi
-tayyor, test qilingan (169 test, hammasi o'tdi), curl smoke-test bilan
-tekshirilgan.
+`rent_companies` → `guides` → `reviews` → `plans` → `admin` → `chat` —
+barchasi tayyor, test qilingan, curl smoke-test bilan tekshirilgan.
+
+### Frontend `front0308`ga moslashtirish (2026-08-03)
+
+Foydalanuvchi so'ragan: eng yangi frontend versiyasini (`front0308`)
+`front2807` bilan to'liq solishtirib, kerakli backend o'zgarishlarini
+aniqlash. `diff -rq` + 3 ta parallel Explore agent tadqiqoti (chat/auth/
+admin, operators/tours katalogi qayta qurilishi, listings/wallet/plans)
+o'tkazildi. **Asosiy xulosa**: deyarli barcha fayl o'zgargan bo'lsa-da,
+bu asosan frontend-ichki taqdimot qayta qurilishi (yangi operators/tours
+katalog sahifalari) — Chat va Admin **butunlay o'zgarmagan** (hamon
+dekorativ). Uchta haqiqiy backend ishi topildi va bajarildi:
+
+1. **Tarif obunasi tsikli** (eng katta topilma) — frontendda
+   `planUntil`/`planPeriod`/`planRate` bilan haqiqiy proratsiya hisob-
+   kitobi paydo bo'lgan (`src/lib/planBilling.ts`, testlar bilan
+   qoplangan, "backend aynan shu formulani takrorlashi kerak" deb
+   hujjatlashtirilgan). `User`ga `plan_until`/`plan_period`/`plan_rate`
+   qo'shildi (`BillingCycle` enum `plans/models.py`dan `users/models.py`ga
+   ko'chirildi — arxitektura tozaligi uchun, `users` bazaviy modul
+   `plans`ga bog'liq bo'lmasligi kerak, Postgres enum turi qayta
+   ishlatiladi). `plans/service.py::switch_plan()` to'liq qayta yozildi:
+   uch rejim — **yangi** (`hasActivePlan=False`), **uzaytirish**
+   (`extend` — bir xil tarif qayta tanlansa, qaytim yo'q, kunlar
+   yonmaydi, muddat mavjud tugash sanasidan boshlanadi), **almashtirish**
+   (`switch` — boshqa tarif, qolgan kunlar puli `rate × daysLeft`
+   sifatida hamyonga qaytariladi, TO'LIQ narx keyin yechiladi — netted
+   emas, ikkalasi alohida ledger yozuvi). **Muhim tuzatish**: dastlab
+   `payable` (net) summani yechish rejalashtirilgan edi, lekin frontend
+   formulasini qayta tekshirganda bu noto'g'ri balans tekshiruvi berishi
+   aniqlandi (`balans + refund >= payable` — juda yumshoq shart);
+   to'g'ri yechim — TO'LIQ `cost`ni yechish, `wallet_service.pay()`ning
+   o'zi balansni (qaytim qo'shilgandan keyin) tekshiradi. Bir xil
+   tarifni qayta tanlash endi **409 bermaydi** (avvalgi
+   `ConflictError("Siz allaqachon shu tarifdasiz")` olib tashlandi) —
+   bu ataylab qilingan xulq-atvor o'zgarishi. Muddati o'tgan tarif
+   **lazy-expiry** bilan aniqlanadi (`get_my_plan()`da hisoblanadi, DB
+   yozuvi o'zgarmaydi, cron/scheduled job shart emas — frontend ham
+   shunday qiladi). `Plan.listing_limit` qo'shildi (bepul:1, standart:3,
+   biznes:7, premium:15 — bu raqamlar katalog matnida allaqachon bor
+   edi) — **faqat ma'lumot sifatida**, kuchga kiritish (limitdan
+   oshgan e'lonlarni pauza qilish) qo'shilmadi, chunki frontendda ham
+   hali faqat ogohlantiruvchi matn, dasturiy ravishda amalga
+   oshirilmagan.
+2. **`Listing`ga yangi `Aqua` turi** (basseyn/sauna/akvapark) va
+   **`old_price`** ustuni (Tour'dagi mavjud naqshga mos — chizib
+   ko'rsatiladigan eski narx). `atm_banks`/`nearby_exchanges` (yangi
+   Hotel/Sanatorium maydonlari) va Dining'ning yangi qoida maydonlari —
+   **hech qanday backend o'zgarishi kerak bo'lmadi**, allaqachon ochiq
+   `Listing.extra: JSONB`ga to'g'ridan-to'g'ri sig'adi.
+3. **Qidiruv filtri kengaytmalari**: `tours.search()`ga `max_price`/
+   `discount_only`, `operators.search()`ga `min_rating` — mavjud
+   ustunlarga asoslangan oddiy filtrlar. `month`/`scope`/`with_tours_only`/
+   `experience` kabi `extra` JSONB ichini qidirishni talab qiladigan
+   filtrlar **keyingi bosqichga qoldirildi** (frontend hali real
+   API'ga ulanmagani uchun hozircha shoshilinch emas).
+
+Doiradan tashqari qoldirilgan (tadqiqot bilan asoslangan): Wallet,
+to'lov usullari, `landmarks.ts`/`distances.ts` (client tomonda
+hisoblanadi), `OperatorReviews.tsx` (to'liq frontend-mock,
+`reviews` moduli qamrovi o'zgarmaydi), `TourOperator`ning yangi
+`bizForm`/`legalAddress`/`legalDistrict` maydonlari (faqat GID
+profiliga tegishli, `operators` moduli doirasidan tashqarida).
+
+Test soni: 186 (hammasi o'tdi). Spec/reja fayli: `/Users/a1111/.claude/plans/unified-wondering-prism.md`
+(vaqtinchalik — keyingi sessiyada `docs/superpowers/specs/`ga ko'chirish
+kerak bo'lishi mumkin). Commit qilinmagan/push qilinmagan hali
+(foydalanuvchi so'raganda) — chat moduli bilan birga.
 
 Foydalanuvchi bilan kelishilgan: **frontend'ni real API'ga ulashdan
 oldin qolgan barcha backend qismlari to'liq tugatiladi.**
 
 **Keyingi sessiya shu yerdan boshlanishi kerak**:
-- Admin modulini commit + push qilish (agar hali qilinmagan bo'lsa)
-- **Chat** — bron/e'lon bilan bog'liq xabarlashuv (real-time/WebSocket
-  talab qilishi mumkin) — qolgan yagona rejalashtirilmagan modul
-- Shulardan keyin: **frontend'ni haqiqiy API'ga ulash** —
-  `src/lib/api.ts`ni localStorage-mock'dan hozirgi 11 ta backend
-  moduliga ulash; JWT saqlash strategiyasi (localStorage vs cookie)
-  shu bosqichda hal qilinadi.
+- Chat moduli + `front0308` moslashtirish ishlarini commit + push qilish
+  (agar hali qilinmagan bo'lsa)
+- **Backend'ning rejalashtirilgan barcha modullari tayyor** — endi
+  navbatdagi katta bosqich: **frontend'ni haqiqiy API'ga ulash** —
+  `src/lib/api.ts`ni (`front0308` versiyasidan) localStorage-mock'dan
+  hozirgi 12 ta backend moduliga ulash; JWT saqlash strategiyasi
+  (localStorage vs cookie) shu bosqichda hal qilinadi.
 
 ## Agent skills
 

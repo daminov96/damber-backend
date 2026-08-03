@@ -1,4 +1,3 @@
-import enum
 import uuid
 from datetime import datetime
 
@@ -7,11 +6,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.db import Base
 from app.modules.plans.catalog import PlanId
-
-
-class BillingCycle(enum.StrEnum):
-    monthly = "monthly"
-    yearly = "yearly"
+from app.modules.users.models import BillingCycle
 
 
 class PlanPurchase(Base):

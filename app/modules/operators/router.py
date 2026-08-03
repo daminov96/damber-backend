@@ -27,12 +27,20 @@ async def list_operators(
     query: str | None = Query(None),
     region: Region | None = Query(None),
     spec_tag: OperatorSpecTag | None = Query(None),
+    min_rating: float | None = Query(None, ge=0, le=5),
     sort: OperatorSortOption = Query(OperatorSortOption.rating),
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
 ):
     items, total = await service.search(
-        db, query=query, region=region, spec_tag=spec_tag, sort=sort, page=page, page_size=page_size
+        db,
+        query=query,
+        region=region,
+        spec_tag=spec_tag,
+        min_rating=min_rating,
+        sort=sort,
+        page=page,
+        page_size=page_size,
     )
     return TourOperatorListOut(items=items, total=total, page=page, page_size=page_size)
 

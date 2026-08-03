@@ -1,10 +1,10 @@
 import uuid
-from datetime import datetime
+from datetime import date, datetime
 
 from pydantic import BaseModel, ConfigDict
 
 from app.modules.plans.catalog import PlanId
-from app.modules.plans.models import BillingCycle
+from app.modules.users.models import BillingCycle
 
 
 class PlanOut(BaseModel):
@@ -12,6 +12,7 @@ class PlanOut(BaseModel):
     name: str
     price: float
     yearly_price: float
+    listing_limit: int
     photo_limit: int
     video_limit: int
     video_size_mb: int
@@ -27,6 +28,10 @@ class PlanCatalogOut(BaseModel):
 class MyPlanOut(BaseModel):
     current_plan_id: PlanId
     plan: PlanOut
+    plan_until: date | None
+    plan_period: BillingCycle | None
+    plan_rate: float | None
+    days_left: int
 
 
 class PlanSwitchRequest(BaseModel):

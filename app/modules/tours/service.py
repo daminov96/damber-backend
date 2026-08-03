@@ -63,6 +63,8 @@ async def search(
     category: str | None,
     nights_min: int | None,
     nights_max: int | None,
+    max_price: float | None,
+    discount_only: bool,
     sort: TourSortOption,
     page: int,
     page_size: int,
@@ -78,6 +80,11 @@ async def search(
         conditions.append(Tour.nights >= nights_min)
     if nights_max is not None:
         conditions.append(Tour.nights <= nights_max)
+    if max_price is not None:
+        conditions.append(Tour.price <= max_price)
+    if discount_only:
+        conditions.append(Tour.old_price > 0)
+        conditions.append(Tour.old_price > Tour.price)
 
     count_stmt = select(func.count()).select_from(Tour).where(*conditions)
     total = (await db.execute(count_stmt)).scalar_one()

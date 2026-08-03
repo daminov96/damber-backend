@@ -14,6 +14,11 @@ class UserRole(enum.StrEnum):
     ADMIN = "ADMIN"
 
 
+class BillingCycle(enum.StrEnum):
+    monthly = "monthly"
+    yearly = "yearly"
+
+
 class User(Base):
     __tablename__ = "users"
 
@@ -28,6 +33,11 @@ class User(Base):
     wallet_balance: Mapped[float] = mapped_column(Numeric(14, 2), default=0)
     is_premium: Mapped[bool] = mapped_column(default=False)
     current_plan_id: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    plan_until: Mapped[date | None] = mapped_column(Date, nullable=True)
+    plan_period: Mapped[BillingCycle | None] = mapped_column(
+        Enum(BillingCycle, name="plan_billing_cycle"), nullable=True
+    )
+    plan_rate: Mapped[float | None] = mapped_column(Numeric(14, 2), nullable=True)
     biz_category: Mapped[str | None] = mapped_column(String(100), nullable=True)
     city: Mapped[str | None] = mapped_column(String(100), nullable=True)
     birth_date: Mapped[date | None] = mapped_column(Date, nullable=True)

@@ -80,6 +80,33 @@ class TestSearch:
         names = [item["name"] for item in resp.json()["items"]]
         assert names.index("Alpha Tours") < names.index("Zebra Tours")
 
+    async def test_filters_by_min_rating(
+        self, client: AsyncClient, b2b_headers: dict, db_session
+    ):
+        from sqlalchemy import select
+
+        from app.modules.operators.models import TourOperator
+
+        high = await _create_operator(client, b2b_headers, name="Top Rated Tours")
+        low = await _create_operator(client, b2b_headers, name="New Tours")
+
+        high_op = (
+            await db_session.execute(
+                select(TourOperator).where(TourOperator.id == high["id"])
+            )
+        ).scalar_one()
+        high_op.rating = 4.8
+        low_op = (
+            await db_session.execute(select(TourOperator).where(TourOperator.id == low["id"]))
+        ).scalar_one()
+        low_op.rating = 2.0
+        await db_session.commit()
+
+        resp = await client.get("/api/v1/operators", params={"min_rating": 4})
+        names = [item["name"] for item in resp.json()["items"]]
+        assert "Top Rated Tours" in names
+        assert "New Tours" not in names
+
 
 class TestOwnership:
     async def test_non_owner_cannot_update_or_delete(

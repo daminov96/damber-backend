@@ -19,6 +19,7 @@ class ListingCreateRequest(BaseModel):
     region: Region
     weekday_price: float = Field(gt=0)
     weekend_price: float = Field(gt=0)
+    old_price: float | None = Field(default=None, gt=0)
     capacity: int = Field(gt=0)
     amenities: list[str] = Field(default_factory=list)
     description: str
@@ -39,6 +40,7 @@ class ListingUpdateRequest(BaseModel):
     region: Region | None = None
     weekday_price: float | None = Field(default=None, gt=0)
     weekend_price: float | None = Field(default=None, gt=0)
+    old_price: float | None = Field(default=None, gt=0)
     capacity: int | None = Field(default=None, gt=0)
     amenities: list[str] | None = None
     description: str | None = None
@@ -75,6 +77,7 @@ class ListingOut(BaseModel):
     region: Region
     weekday_price: float
     weekend_price: float
+    old_price: float | None
     rating: float
     rating_count: int
     verified: bool

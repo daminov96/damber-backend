@@ -185,6 +185,47 @@ class TestSearch:
         names = [item["name"] for item in resp.json()["items"]]
         assert names.index("Cheap Tour") < names.index("Expensive Tour")
 
+    async def test_filters_by_max_price(
+        self, client: AsyncClient, b2b_headers: dict, admin_headers: dict
+    ):
+        operator = await _create_operator(client, b2b_headers)
+        cheap = await _create_tour(
+            client, b2b_headers, operator["id"], name="Budget Tour", price=100000
+        )
+        await _approve_tour(client, cheap["id"], admin_headers)
+        expensive = await _create_tour(
+            client, b2b_headers, operator["id"], name="Lux Tour", price=900000
+        )
+        await _approve_tour(client, expensive["id"], admin_headers)
+
+        resp = await client.get("/api/v1/tours", params={"max_price": 200000})
+        names = [item["name"] for item in resp.json()["items"]]
+        assert "Budget Tour" in names
+        assert "Lux Tour" not in names
+
+    async def test_discount_only_filter(
+        self, client: AsyncClient, b2b_headers: dict, admin_headers: dict
+    ):
+        operator = await _create_operator(client, b2b_headers)
+        discounted = await _create_tour(
+            client,
+            b2b_headers,
+            operator["id"],
+            name="Discounted Tour",
+            price=100000,
+            old_price=150000,
+        )
+        await _approve_tour(client, discounted["id"], admin_headers)
+        regular = await _create_tour(
+            client, b2b_headers, operator["id"], name="Regular Tour", price=100000
+        )
+        await _approve_tour(client, regular["id"], admin_headers)
+
+        resp = await client.get("/api/v1/tours", params={"discount_only": True})
+        names = [item["name"] for item in resp.json()["items"]]
+        assert "Discounted Tour" in names
+        assert "Regular Tour" not in names
+
 
 class TestEditAndDelete:
     async def test_non_owner_cannot_update_or_delete(

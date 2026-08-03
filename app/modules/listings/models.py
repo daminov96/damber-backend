@@ -31,6 +31,7 @@ class ListingType(enum.StrEnum):
     Sanatorium = "Sanatorium"
     RentCar = "RentCar"
     Dining = "Dining"
+    Aqua = "Aqua"
 
 
 class Region(enum.StrEnum):
@@ -126,6 +127,7 @@ class Listing(Base):
 
     weekday_price: Mapped[float] = mapped_column(Numeric(14, 2))
     weekend_price: Mapped[float] = mapped_column(Numeric(14, 2))
+    old_price: Mapped[float | None] = mapped_column(Numeric(14, 2), nullable=True)
 
     rating: Mapped[float] = mapped_column(Float, default=0)
     rating_count: Mapped[int] = mapped_column(Integer, default=0)

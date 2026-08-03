@@ -148,6 +148,30 @@ class TestSearch:
         assert "Other Listing" not in names
 
 
+class TestAquaTypeAndOldPrice:
+    async def test_create_aqua_listing(self, client: AsyncClient, b2b_headers: dict):
+        listing = await _create_listing(
+            client, b2b_headers, name="City Aquapark", type="Aqua", old_price=200
+        )
+        assert listing["type"] == "Aqua"
+        assert listing["old_price"] == 200
+
+    async def test_old_price_optional_and_defaults_to_none(
+        self, client: AsyncClient, b2b_headers: dict
+    ):
+        listing = await _create_listing(client, b2b_headers)
+        assert listing["old_price"] is None
+
+    async def test_extra_accepts_arbitrary_keys(self, client: AsyncClient, b2b_headers: dict):
+        extra = {
+            "atmBanks": "Kapitalbank, SQB",
+            "nearbyExchanges": [{"name": "Ipoteka Bank", "distance": "300 m", "hours": "24/7"}],
+            "alcoholPolicy": "allowed",
+        }
+        listing = await _create_listing(client, b2b_headers, extra=extra)
+        assert listing["extra"] == extra
+
+
 class TestModeration:
     async def test_admin_reject_sets_reason_and_hides_from_search(
         self, client: AsyncClient, b2b_headers: dict, admin_headers: dict

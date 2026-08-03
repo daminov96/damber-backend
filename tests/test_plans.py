@@ -1,4 +1,9 @@
+from datetime import date, timedelta
+
 from httpx import AsyncClient
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.modules.users.models import User
 
 
 async def _topup(client: AsyncClient, headers: dict, amount: float) -> None:
@@ -20,10 +25,12 @@ class TestCatalog:
         assert business["yearly_price"] == round(300_000 * 12 * 0.84)
         assert business["badge"] == "Tavsiya etamiz"
         assert business["emblem"] == "TOP"
+        assert business["listing_limit"] == 7
 
         free = items["free"]
         assert free["price"] == 0
         assert free["yearly_price"] == 0
+        assert free["listing_limit"] == 1
 
 
 class TestMyPlan:
@@ -33,6 +40,10 @@ class TestMyPlan:
         body = resp.json()
         assert body["current_plan_id"] == "free"
         assert body["plan"]["id"] == "free"
+        assert body["plan_until"] is None
+        assert body["plan_period"] is None
+        assert body["plan_rate"] is None
+        assert body["days_left"] == 0
 
     async def test_b2c_cannot_access(self, client: AsyncClient, b2c_headers: dict):
         resp = await client.get("/api/v1/plans/mine", headers=b2c_headers)
@@ -76,35 +87,104 @@ class TestSwitchPlan:
         balance_resp = await client.get("/api/v1/wallet/balance", headers=b2b_headers)
         assert balance_resp.json()["balance"] == 0
 
-    async def test_switch_to_free_does_not_touch_wallet(
-        self, client: AsyncClient, b2b_headers: dict
-    ):
-        await _topup(client, b2b_headers, 1_000_000)
-        await client.post(
-            "/api/v1/plans/switch", json={"plan_id": "standard"}, headers=b2b_headers
-        )
-        balance_before = (
-            await client.get("/api/v1/wallet/balance", headers=b2b_headers)
-        ).json()["balance"]
-
-        resp = await client.post(
-            "/api/v1/plans/switch", json={"plan_id": "free"}, headers=b2b_headers
-        )
-        assert resp.status_code == 200, resp.text
-        assert resp.json()["current_plan_id"] == "free"
-
-        balance_after = (
-            await client.get("/api/v1/wallet/balance", headers=b2b_headers)
-        ).json()["balance"]
-        assert balance_after == balance_before
-
-    async def test_switch_to_current_plan_returns_409(
-        self, client: AsyncClient, b2b_headers: dict
-    ):
+    async def test_cannot_switch_to_free_plan(self, client: AsyncClient, b2b_headers: dict):
         resp = await client.post(
             "/api/v1/plans/switch", json={"plan_id": "free"}, headers=b2b_headers
         )
         assert resp.status_code == 409
+
+    async def test_reselecting_same_active_plan_extends_without_refund(
+        self, client: AsyncClient, b2b_headers: dict
+    ):
+        await _topup(client, b2b_headers, 1_000_000)
+        first = await client.post(
+            "/api/v1/plans/switch",
+            json={"plan_id": "standard", "billing_cycle": "monthly"},
+            headers=b2b_headers,
+        )
+        first_until = first.json()["plan_until"]
+
+        second = await client.post(
+            "/api/v1/plans/switch",
+            json={"plan_id": "standard", "billing_cycle": "monthly"},
+            headers=b2b_headers,
+        )
+        assert second.status_code == 200, second.text
+        assert second.json()["current_plan_id"] == "standard"
+        # Uzaytirishda muddat mavjud tugash sanasidan +30 kun (bugundan emas)
+        assert second.json()["plan_until"] == str(
+            date.fromisoformat(first_until) + timedelta(days=30)
+        )
+
+        balance_resp = await client.get("/api/v1/wallet/balance", headers=b2b_headers)
+        # Ikkala xarid ham to'liq narxda yechilgan — uzaytirishda qaytim yo'q
+        assert balance_resp.json()["balance"] == 1_000_000 - 150_000 - 150_000
+
+    async def test_switching_between_paid_plans_refunds_prorated_remainder(
+        self, client: AsyncClient, b2b_headers: dict
+    ):
+        await _topup(client, b2b_headers, 2_000_000)
+        await client.post(
+            "/api/v1/plans/switch",
+            json={"plan_id": "standard", "billing_cycle": "monthly"},
+            headers=b2b_headers,
+        )
+        balance_after_first = (
+            await client.get("/api/v1/wallet/balance", headers=b2b_headers)
+        ).json()["balance"]
+
+        switch_resp = await client.post(
+            "/api/v1/plans/switch",
+            json={"plan_id": "business", "billing_cycle": "monthly"},
+            headers=b2b_headers,
+        )
+        assert switch_resp.status_code == 200, switch_resp.text
+        assert switch_resp.json()["current_plan_id"] == "business"
+        # Standart 30 kunga 150000 to'lagan, hali hech kuni o'tmagan — rate = 150000/30 = 5000/kun,
+        # 30 kun qolgan bo'lsa refundable ~150000 (round natijasida aynan shu)
+        expected_refund = round((150_000 / 30) * 30)
+        balance_after_switch = (
+            await client.get("/api/v1/wallet/balance", headers=b2b_headers)
+        ).json()["balance"]
+        assert balance_after_switch == balance_after_first + expected_refund - 300_000
+
+        tx_resp = await client.get("/api/v1/wallet/transactions", headers=b2b_headers)
+        plan_txs = [tx for tx in tx_resp.json()["items"] if tx["kind"] == "plan"]
+        assert len(plan_txs) >= 3  # standart xarid + qaytim + biznes xarid
+
+    async def test_expired_plan_treated_as_new_purchase(
+        self, client: AsyncClient, b2b_headers: dict, b2b_user: User, db_session: AsyncSession
+    ):
+        await _topup(client, b2b_headers, 1_000_000)
+        await client.post(
+            "/api/v1/plans/switch",
+            json={"plan_id": "standard", "billing_cycle": "monthly"},
+            headers=b2b_headers,
+        )
+
+        # Muddatni "o'tkazib yuborish" — bevosita DB orqali
+        await db_session.refresh(b2b_user)
+        b2b_user.plan_until = date.today() - timedelta(days=1)
+        await db_session.commit()
+
+        my_plan_resp = await client.get("/api/v1/plans/mine", headers=b2b_headers)
+        assert my_plan_resp.json()["current_plan_id"] == "free"
+
+        balance_before = (
+            await client.get("/api/v1/wallet/balance", headers=b2b_headers)
+        ).json()["balance"]
+
+        switch_resp = await client.post(
+            "/api/v1/plans/switch",
+            json={"plan_id": "business", "billing_cycle": "monthly"},
+            headers=b2b_headers,
+        )
+        assert switch_resp.status_code == 200, switch_resp.text
+        # Muddati o'tgan tarif uchun qaytim yo'q (mode=new) — to'liq narx yechiladi
+        balance_after = (
+            await client.get("/api/v1/wallet/balance", headers=b2b_headers)
+        ).json()["balance"]
+        assert balance_after == balance_before - 300_000
 
     async def test_yearly_billing_cycle_charges_discounted_price(
         self, client: AsyncClient, b2b_headers: dict

@@ -47,6 +47,7 @@ async def search(
     query: str | None,
     region: Region | None,
     spec_tag: OperatorSpecTag | None,
+    min_rating: float | None,
     sort: OperatorSortOption,
     page: int,
     page_size: int,
@@ -58,6 +59,8 @@ async def search(
         conditions.append(TourOperator.region == region)
     if spec_tag is not None:
         conditions.append(TourOperator.spec_tag == spec_tag)
+    if min_rating is not None:
+        conditions.append(TourOperator.rating >= min_rating)
 
     count_stmt = select(func.count()).select_from(TourOperator).where(*conditions)
     total = (await db.execute(count_stmt)).scalar_one()
