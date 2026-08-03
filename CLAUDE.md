@@ -331,14 +331,76 @@ umumiy). `TopupModal.tsx::onGatewaySuccess` — endi real
 TypeScript/ESLint toza, 355/355 test o'tdi (regressiyasiz). Curl
 bilan to'liq oqim tasdiqlandi: balans/to'ldirish/tarix, va `"plan"`
 turi (tarif sotib olish tranzaksiyasi) to'g'ri ko'rinishi ham
-tekshirildi. Commit qilinmagan hali.
+tekshirildi. Commit qilingan (`b6dd743`, push qilinmagan).
+
+### Frontend integratsiyasi — Plans (2026-08-03, xuddi shu sessiya)
+
+Foydalanuvchi "ikkalasini ham" (Listings + Plans) so'radi. Listings
+uchun chuqur tadqiqot o'tkazildi va **ancha katta ekanligi aniqlandi**
+(quyida "Listings — doiradan tashqari qoldirildi" bo'limiga qarang) —
+foydalanuvchi bilan kelishilgan holda **faqat Plans shu sessiyada
+ulandi**, Listings alohida rejalashtirish talab qiladi.
+
+**Backend o'zgarishi kerak bo'lmadi** — `GET /plans`, `GET /plans/mine`,
+`POST /plans/switch` allaqachon frontend ehtiyojiga mos edi.
+
+Tadqiqot muhim narsani topdi: frontend'da tarif muddati/kunlar-qoldi
+hisobi **3 joyda mustaqil takrorlangan edi** (`HostPlansTab.tsx`,
+`app/host/page.tsx` yon paneli, va bevosita `user.planUntil`/
+`planRate` maydonlaridan) — bu ikkala joy ham endi bitta manbadan
+(`myPlan`, `GET /plans/mine` javobi) o'qiydi, mustaqil
+`daysUntilFrom()` chaqirmaydi.
+
+Frontend: `auth.ts`ga `plansCatalog`/`myPlan` state va
+`fetchPlansCatalog()`/`fetchMyPlan()`/`switchPlan()` (yangi) qo'shildi.
+`HostPlansTab.tsx`: `getPlans()` (statik) → real `plansCatalog`;
+mijoz-tomon `planQuote()` hisobi **preview sifatida saqlanib qoldi**
+(tasdiqlash oynasida darhol ko'rsatish uchun, tarmoq so'rovisiz), lekin
+haqiqiy summani backend `POST /plans/switch` hisoblaydi va yechadi —
+`confirm()` endi `switchPlan()` chaqiradi, muvaffaqiyat xabari
+backend'dan qaytgan HAQIQIY `plan_until`dan yoziladi (preview'dan
+emas). `app/host/page.tsx`: yon paneldagi "Tarif" kartochkasi endi
+`myPlan`dan (bir marta sahifa mount'ida so'raladi).
+
+TypeScript/ESLint toza, 355/355 test o'tdi. Curl bilan to'liq oqim
+tasdiqlandi: katalog/mening tarifim/almashtirish — barcha maydonlar
+(`listing_limit`/`badge`/`emblem`/`plan_rate`/`days_left`) frontend
+kutgan shaklga aynan mos keldi. Commit qilinmagan hali.
+
+### Listings — doiradan tashqari qoldirildi (tadqiqot bilan asoslangan)
+
+Chuqur tadqiqot shuni ko'rsatdi: Listings integratsiyasi Wallet/Plans'dan
+sifat jihatidan boshqacha — bir nechta **haqiqiy arxitektura qarori**
+talab qiladi, oddiy "ulash" emas:
+1. **Amenities enum'i**: frontendda 90 ta qiymat, backend'da ~11 ta —
+   backend enum'ini sezilarli kengaytirish kerak.
+2. **~45 ta maydon** (xona turlari, sanatoriy/dining maxsus maydonlari,
+   promo/qoidalar) backend'ning `extra` JSONB'siga moslashtirilishi
+   kerak — bu alohida dizayn ishi.
+3. **Rasm yuklash arxitekturasi boshqacha**: frontend `data:` URL
+   (base64) saqlaydi, backend haqiqiy `multipart/form-data` kutadi —
+   wizard'ni qayta qurish kerak (`File` obyektlarini saqlab qolish).
+4. **Sahifalash (pagination) umuman yo'q** — qidiruv butun ro'yxatni
+   bir vaqtda ko'rsatadi.
+5. **Rad etish (reject) UI'si umuman yo'q** — backend'da bor
+   (`rejected`/`reject_reason`), frontendda mutlaqo qurilmagan.
+6. Video/menyu-PDF/litsenziya fayli yuklash — backend'da hech qanday
+   endpoint yo'q.
+7. Ikki alohida manba (`src/data/listings.ts` statik massiv +
+   `myListings.ts` localStorage do'koni) bitta haqiqiy backend'ga
+   birlashtirilishi kerak; `app/listing/[id]/page.tsx`ning
+   `generateStaticParams()` (build-vaqtida statik sahifalar) dinamik
+   render'ga o'zgartirilishi kerak.
+
+Bu ish **alohida sessiya/reja talab qiladi** — shu sessiyada
+boshlanmadi.
 
 **Keyingi sessiya shu yerdan boshlanishi kerak**:
-- Frontend'dagi Auth+Wallet ishlarini commit qilish (Wallet hali
-  commit qilinmagan) va ikkala repo push masalasini hal qilish
-- Keyingi modulni ulash — tavsiya: **Listings** (qidiruv/e'lon —
-  eng ko'rinadigan) yoki **Plans** (backend shu sessiyada allaqachon
-  yangilangan — proratsiya, `listing_limit`)
+- Frontend'dagi Auth+Wallet+Plans ishlarini push qilish masalasini
+  hal qilish (hammasi `main` branch'ga commit qilingan, push qilinmagan)
+- **Listings** uchun alohida chuqur reja: amenities enum kengaytirish,
+  `extra` JSONB sxemasi dizayni, rasm yuklash wizard qayta qurilishi,
+  sahifalash, rad etish UI'si — yuqoridagi ro'yxatga qarang
 
 ## Agent skills
 
