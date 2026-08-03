@@ -7,6 +7,7 @@ from fastapi.staticfiles import StaticFiles
 from app.core.config import get_settings
 from app.modules.admin.router import router as admin_router
 from app.modules.bookings.router import router as bookings_router
+from app.modules.chat.router import router as chat_router
 from app.modules.guides.router import router as guides_router
 from app.modules.listings.router import router as listings_router
 from app.modules.operators.router import router as operators_router
@@ -34,6 +35,7 @@ app.include_router(admin_router)
 app.include_router(listings_router)
 app.include_router(wallet_router)
 app.include_router(bookings_router)
+app.include_router(chat_router)
 app.include_router(guides_router)
 app.include_router(operators_router)
 app.include_router(plans_router)
