@@ -158,7 +158,7 @@ belgilaydi.
   yo'q** (frontendda adminning chatga aloqasi umuman yo'q edi). Turlar/
   operatorlar/gidlarga ulanmagan (frontendda faqat Listing domenida). Spec:
   `docs/superpowers/specs/2026-07-30-chat-module-design.md`.
-  Commit qilinmagan/push qilinmagan hali (foydalanuvchi so'raganda).
+  Commit qilingan va GitHub'ga push qilingan (2026-08-03).
 
 **Rejalashtirilgan asosiy modullar ketma-ketligi to'liq tugadi**: `users` →
 `listings` → `wallet` → `bookings` → `operators` → `tours` →
@@ -301,10 +301,9 @@ tasdiqlagan** — real ro'yxatdan o'tish Postgres'da ko'rindi (`Daminov
 Jonibek`, `998504777060`).
 
 Backend: commit qilingan va push qilingan (`099841e`). Frontend:
-commit qilingan (`8954672`, `main` branch, **push qilinmagan** —
-faqat commit so'ralgan edi; `front0308` repo'sida 370+ ta boshqa
-commit qilinmagan fayl ham bor — ularga tegilmadi, faqat auth uchun
-o'zgartirilgan 7 ta fayl alohida commit qilindi).
+commit qilingan va push qilingan (`8954672`; `front0308` repo'sida
+370+ ta boshqa commit qilinmagan fayl ham bor — ularga tegilmadi,
+faqat auth uchun o'zgartirilgan 7 ta fayl alohida commit qilindi).
 
 ### Frontend integratsiyasi — Wallet (2026-08-03, xuddi shu sessiya)
 
@@ -331,7 +330,7 @@ umumiy). `TopupModal.tsx::onGatewaySuccess` — endi real
 TypeScript/ESLint toza, 355/355 test o'tdi (regressiyasiz). Curl
 bilan to'liq oqim tasdiqlandi: balans/to'ldirish/tarix, va `"plan"`
 turi (tarif sotib olish tranzaksiyasi) to'g'ri ko'rinishi ham
-tekshirildi. Commit qilingan (`b6dd743`, push qilinmagan).
+tekshirildi. Commit qilingan va push qilingan (`b6dd743`).
 
 ### Frontend integratsiyasi — Plans (2026-08-03, xuddi shu sessiya)
 
@@ -365,7 +364,8 @@ emas). `app/host/page.tsx`: yon paneldagi "Tarif" kartochkasi endi
 TypeScript/ESLint toza, 355/355 test o'tdi. Curl bilan to'liq oqim
 tasdiqlandi: katalog/mening tarifim/almashtirish — barcha maydonlar
 (`listing_limit`/`badge`/`emblem`/`plan_rate`/`days_left`) frontend
-kutgan shaklga aynan mos keldi. Commit qilinmagan hali.
+kutgan shaklga aynan mos keldi. Commit qilingan va push qilingan
+(`0a60fcf`).
 
 ### Listings — doiradan tashqari qoldirildi (tadqiqot bilan asoslangan)
 
@@ -395,9 +395,10 @@ talab qiladi, oddiy "ulash" emas:
 Bu ish **alohida sessiya/reja talab qiladi** — shu sessiyada
 boshlanmadi.
 
+Frontend'dagi Auth+Wallet+Plans ishlari `main` branch'ga commit
+qilingan **va GitHub'ga push qilingan** (2026-08-03).
+
 **Keyingi sessiya shu yerdan boshlanishi kerak**:
-- Frontend'dagi Auth+Wallet+Plans ishlarini push qilish masalasini
-  hal qilish (hammasi `main` branch'ga commit qilingan, push qilinmagan)
 - **Listings** uchun alohida chuqur reja: amenities enum kengaytirish,
   `extra` JSONB sxemasi dizayni, rasm yuklash wizard qayta qurilishi,
   sahifalash, rad etish UI'si — yuqoridagi ro'yxatga qarang
