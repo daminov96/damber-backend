@@ -227,22 +227,93 @@ hisoblanadi), `OperatorReviews.tsx` (to'liq frontend-mock,
 `bizForm`/`legalAddress`/`legalDistrict` maydonlari (faqat GID
 profiliga tegishli, `operators` moduli doirasidan tashqarida).
 
-Test soni: 186 (hammasi o'tdi). Spec/reja fayli: `/Users/a1111/.claude/plans/unified-wondering-prism.md`
-(vaqtinchalik — keyingi sessiyada `docs/superpowers/specs/`ga ko'chirish
-kerak bo'lishi mumkin). Commit qilinmagan/push qilinmagan hali
-(foydalanuvchi so'raganda) — chat moduli bilan birga.
+Test soni: 186 (hammasi o'tdi). Spec: `docs/superpowers/specs/2026-08-03-frontend-sync-plans-listings-search.md`.
+Chat moduli va bu ish **commit qilingan va GitHub'ga push qilingan**
+(2026-08-03, 4 ta commit: docs+chat, docs+sync).
 
 Foydalanuvchi bilan kelishilgan: **frontend'ni real API'ga ulashdan
-oldin qolgan barcha backend qismlari to'liq tugatiladi.**
+oldin qolgan barcha backend qismlari to'liq tugatiladi.** Bu shart
+bajarildi — shu sessiyada frontend integratsiyasi boshlandi (pastga
+qarang).
+
+### Frontend integratsiyasi — Auth/Login/Register oqimi (2026-08-03)
+
+Backend'ning barcha modullari tayyor bo'lgach, foydalanuvchi
+frontend'ni (`front0308`) haqiqiy API'ga ulashni so'radi, **auth/login/
+register oqimidan boshlab**. Tadqiqot shuni ko'rsatdi: frontend hozirgacha
+**to'liq parolsiz** edi — "SMS OTP" butunlay client-tomonda simulyatsiya
+qilingan (`Math.random()` kod, foydalanuvchining o'ziga ko'rsatilgan,
+haqiqiy SMS yo'q), "login qilingan" holat esa faqat `currentUserId`
+— token/JWT tushunchasi umuman yo'q edi. Foydalanuvchi bilan
+kelishildi: **parol asosida auth** (OTP emas) va **localStorage**da
+token saqlash.
+
+**Backend qo'shimchasi**: `POST /api/v1/auth/refresh` (yangi) —
+oldin `refresh_token` yaratilardi-yu, uni ishlatadigan endpoint yo'q
+edi (`access_token` 30 daqiqada tugaydi — refresh'siz foydalanuvchi
+har 30 daqiqada kutilmaganda chiqib qolardi). `decode_token`/
+`service.get_by_id`/`service.issue_tokens` — mavjud, qayta ishlatildi.
+`UserOut`ga `biz_category` qo'shildi (ro'yxatdan o'tishda yig'ilardi,
+lekin hech qachon qaytarilmasdi). 10 ta test qo'shildi
+(`tests/test_users.py` — birinchi marta yaratildi, ilgari auth uchun
+alohida test fayli yo'q edi).
+
+**Frontend (`front0308`) o'zgarishlari**:
+- Yangi `src/lib/apiClient.ts` — fetch o'ramasi, backend'ning ikki xil
+  xato shaklini (`{"detail": "matn"}` va `{"detail": [{"msg":...}]}`)
+  ham qamraydi.
+- `src/store/auth.ts` — `accessToken`/`refreshToken` qo'shildi,
+  `login`/`register` endi **async**, haqiqiy backend'ga so'rov
+  yuboradi, `hydrateSession()` (yangi) — ilova ochilganda tokenni
+  tekshiradi, 401 kelsa bir marta refresh qiladi. **Muhim arxitektura
+  qarori**: `users: Record<string, User>` mock-do'kon SHAKLI saqlanib
+  qoldi (`useCurrentUser()` — 39 ta iste'molchi fayl uchun yagona
+  kirish nuqtasi, unga tegilmadi) — `register`/`login` haqiqiy backend
+  javobini shu dict'ga real UUID kaliti bilan **merge** qiladi
+  (overwrite emas — `favorites`/`bizTypes`/`planUntil` kabi hali
+  backend'da yo'q maydonlar saqlanib qoladi). Bu bilan hamyon/bron/
+  sevimlilar kabi hali mock quyi tizimlar hech qanday o'zgarishsiz
+  ishlashda davom etadi — ular alohida navbatda ulanadi.
+- `OtpStep.tsx` **o'chirildi** (endi hech qayerda ishlatilmaydi) —
+  ichidagi routing mantig'i (rol asosida `/host`/`/dashboard`/`/admin`,
+  wizard-ochish so'rovlari, `bizTypeAfter` holati) `RegisterForm.tsx`/
+  `LoginForm.tsx`ga ko'chirildi. Demo-login tugmalari (`CLIENT-01`/
+  `OWN-441`, SMS'siz) olib tashlandi — haqiqiy backend'da bu ID'lar yo'q.
+- `SessionGuard.tsx` — eski `validateSession(deviceId)` (soxta qurilma-
+  ishonch tekshiruvi) o'rniga `hydrateSession()` chaqiradi.
+- `sessions`/`DeviceSession`/`rememberDevice`/`revokeSession` — **saqlanib
+  qoldi** (o'chirilmadi) — `DeviceSessions.tsx` (akkaunt sozlamalari,
+  hali dekorativ) hamon ulardan foydalanadi, faqat endi real auth
+  gate'iga ta'sir qilmaydi.
+- **Doiradan tashqari** (keyingi navbatda): wallet/bookings/reviews/
+  favorites/plans hamon mock; `bizTypes`/`planUntil`/`planPeriod`/
+  `planRate`/`joinDate`/`birthDate` backend'da bor lekin bu bosqichda
+  frontend `User`ga ulanmagan; boshqa foydalanuvchi ma'lumotini
+  ko'rsatish (host ismi, chat sherigi) — umumiy "ID bo'yicha user olish"
+  endpoint yo'q va qo'shilmadi.
+
+**Tekshirish**: TypeScript (`tsc --noEmit`) toza, ESLint toza, frontend
+test to'plami 355/355 o'tdi (`auth.test.ts` yangi async imzoga
+moslashtirildi, `fetch` mock qilingan). Backend orqali to'liq
+register→me→refresh→me oqimi va CORS (`localhost:3000` uchun) curl
+bilan tasdiqlandi. **Muhim cheklov**: bu sessiyada haqiqiy brauzer
+avtomatlashtirish vositasi (Playwright/MCP) mavjud emas edi — UI orqali
+qo'lda bosib ko'rish (ro'yxatdan o'tish/kirish tugmalarini bosish)
+qilinmadi, faqat backend'ga aynan frontend yuboradigan so'rovlarni
+takrorlash orqali tasdiqlandi. **Keyingi sessiya (yoki foydalanuvchi
+o'zi) buni brauzerda qo'lda tekshirishi tavsiya etiladi.**
+
+Spec/reja fayli: `/Users/a1111/.claude/plans/unified-wondering-prism.md`
+(vaqtinchalik). Commit qilinmagan hali (backend: `users/router.py`,
+`users/schemas.py`, `tests/test_users.py`; frontend: alohida repo,
+`front0308/damber-front`, hali commit qilinmagan).
 
 **Keyingi sessiya shu yerdan boshlanishi kerak**:
-- Chat moduli + `front0308` moslashtirish ishlarini commit + push qilish
-  (agar hali qilinmagan bo'lsa)
-- **Backend'ning rejalashtirilgan barcha modullari tayyor** — endi
-  navbatdagi katta bosqich: **frontend'ni haqiqiy API'ga ulash** —
-  `src/lib/api.ts`ni (`front0308` versiyasidan) localStorage-mock'dan
-  hozirgi 12 ta backend moduliga ulash; JWT saqlash strategiyasi
-  (localStorage vs cookie) shu bosqichda hal qilinadi.
+- Auth integratsiyasini brauzerda qo'lda tekshirish (ro'yxatdan o'tish,
+  kirish, sahifani yangilash — sessiya saqlanishi)
+- Ikkala repo'da commit + push (backend va frontend alohida)
+- Keyingi modulni ulash — tavsiya: **Wallet** (eng sodda, boshqa ko'p
+  narsa unga bog'liq) yoki **Listings** (qidiruv/e'lon — eng ko'rinadigan)
 
 ## Agent skills
 

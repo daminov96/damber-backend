@@ -21,6 +21,10 @@ class LoginRequest(BaseModel):
     password: str
 
 
+class RefreshRequest(BaseModel):
+    refresh_token: str
+
+
 class TokenPair(BaseModel):
     access_token: str
     refresh_token: str
@@ -39,6 +43,7 @@ class UserOut(BaseModel):
     wallet_balance: float
     is_premium: bool
     current_plan_id: str | None
+    biz_category: str | None
     city: str | None
     avatar_url: str | None
     is_banned: bool
