@@ -296,24 +296,49 @@ alohida test fayli yo'q edi).
 test to'plami 355/355 o'tdi (`auth.test.ts` yangi async imzoga
 moslashtirildi, `fetch` mock qilingan). Backend orqali to'liq
 register→me→refresh→me oqimi va CORS (`localhost:3000` uchun) curl
-bilan tasdiqlandi. **Muhim cheklov**: bu sessiyada haqiqiy brauzer
-avtomatlashtirish vositasi (Playwright/MCP) mavjud emas edi — UI orqali
-qo'lda bosib ko'rish (ro'yxatdan o'tish/kirish tugmalarini bosish)
-qilinmadi, faqat backend'ga aynan frontend yuboradigan so'rovlarni
-takrorlash orqali tasdiqlandi. **Keyingi sessiya (yoki foydalanuvchi
-o'zi) buni brauzerda qo'lda tekshirishi tavsiya etiladi.**
+bilan tasdiqlandi. **Foydalanuvchi o'zi brauzerda sinab ko'rgan va
+tasdiqlagan** — real ro'yxatdan o'tish Postgres'da ko'rindi (`Daminov
+Jonibek`, `998504777060`).
 
-Spec/reja fayli: `/Users/a1111/.claude/plans/unified-wondering-prism.md`
-(vaqtinchalik). Commit qilinmagan hali (backend: `users/router.py`,
-`users/schemas.py`, `tests/test_users.py`; frontend: alohida repo,
-`front0308/damber-front`, hali commit qilinmagan).
+Backend: commit qilingan va push qilingan (`099841e`). Frontend:
+commit qilingan (`8954672`, `main` branch, **push qilinmagan** —
+faqat commit so'ralgan edi; `front0308` repo'sida 370+ ta boshqa
+commit qilinmagan fayl ham bor — ularga tegilmadi, faqat auth uchun
+o'zgartirilgan 7 ta fayl alohida commit qilindi).
+
+### Frontend integratsiyasi — Wallet (2026-08-03, xuddi shu sessiya)
+
+Auth'dan keyingi navbatdagi modul — foydalanuvchi bilan kelishilgan
+(3 variantdan: Wallet/Listings/Plans → Wallet tanlandi). **Backend
+o'zgarishi kerak bo'lmadi** — `GET /wallet/balance`, `GET /wallet/
+transactions`, `POST /wallet/topup` allaqachon frontend ehtiyojiga
+mos edi (`pay`/`credit`/`transfer` ataylab faqat ichki, public
+endpoint yo'q — bu Wallet integratsiyasining tabiiy chegarasini
+belgiladi: balans/to'ldirish/tarix real, "to'lov" funksiyalari
+(bron avansi, tarif sotib olish) hali mock — ular alohida navbatda).
+
+Frontend: `WalletTxKind`ga `"plan"` qo'shildi (backend'da bor edi,
+frontend yo'q — `WalletJournal.tsx`dagi `KIND_META` bilan birga).
+`auth.ts`ga `fetchWalletTransactions()`/`topupWallet()` (yangi, real
+backend'ga ulangan) — **mavjud** `topup()`/`pay()`/`logWalletTx()`
+funksiyalariga **tegilmadi** (ular `HostPlansTab.tsx`ning hali mock
+tarif-almashtirish oqimida ishlatiladi, bu safar doiradan tashqarida).
+`WalletJournal.tsx` — `useEffect` orqali mount'da haqiqiy tarixni
+so'raydi (host va dashboard ikkalasida ham ishlaydi, chunki komponent
+umumiy). `TopupModal.tsx::onGatewaySuccess` — endi real
+`POST /wallet/topup`ga so'rov yuboradi, xato holatini ko'rsatadi.
+
+TypeScript/ESLint toza, 355/355 test o'tdi (regressiyasiz). Curl
+bilan to'liq oqim tasdiqlandi: balans/to'ldirish/tarix, va `"plan"`
+turi (tarif sotib olish tranzaksiyasi) to'g'ri ko'rinishi ham
+tekshirildi. Commit qilinmagan hali.
 
 **Keyingi sessiya shu yerdan boshlanishi kerak**:
-- Auth integratsiyasini brauzerda qo'lda tekshirish (ro'yxatdan o'tish,
-  kirish, sahifani yangilash — sessiya saqlanishi)
-- Ikkala repo'da commit + push (backend va frontend alohida)
-- Keyingi modulni ulash — tavsiya: **Wallet** (eng sodda, boshqa ko'p
-  narsa unga bog'liq) yoki **Listings** (qidiruv/e'lon — eng ko'rinadigan)
+- Frontend'dagi Auth+Wallet ishlarini commit qilish (Wallet hali
+  commit qilinmagan) va ikkala repo push masalasini hal qilish
+- Keyingi modulni ulash — tavsiya: **Listings** (qidiruv/e'lon —
+  eng ko'rinadigan) yoki **Plans** (backend shu sessiyada allaqachon
+  yangilangan — proratsiya, `listing_limit`)
 
 ## Agent skills
 
