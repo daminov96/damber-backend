@@ -63,6 +63,8 @@ async def search(
     max_price: float | None,
     amenities: list[str] | None,
     guests: int | None,
+    query: str | None,
+    min_rating: float | None,
     sort: SortOption,
     page: int,
     page_size: int,
@@ -80,10 +82,16 @@ async def search(
         conditions.append(Listing.capacity >= guests)
     if amenities:
         conditions.append(Listing.amenities.contains(amenities))
+    if query:
+        like = f"%{query}%"
+        conditions.append((Listing.name.ilike(like)) | (Listing.description.ilike(like)))
+    if min_rating is not None:
+        conditions.append(Listing.rating >= min_rating)
 
     count_stmt = select(func.count()).select_from(Listing).where(*conditions)
     total = (await db.execute(count_stmt)).scalar_one()
 
+    discount_amount = func.coalesce(Listing.old_price - Listing.weekday_price, 0)
     order_map = {
         SortOption.price_asc: [Listing.weekday_price.asc()],
         SortOption.price_desc: [Listing.weekday_price.desc()],
@@ -91,6 +99,7 @@ async def search(
         SortOption.newest: [Listing.created_at.desc()],
         SortOption.hot: [Listing.is_hot.desc(), Listing.created_at.desc()],
         SortOption.most_saved: [Listing.saves.desc()],
+        SortOption.discount: [discount_amount.desc()],
     }
 
     stmt = (
@@ -110,6 +119,9 @@ async def get_by_id(db: AsyncSession, listing_id: uuid.UUID, current_user: User 
     listing = await _get_or_404(db, listing_id)
     if not _visible_to(listing, current_user):
         raise NotFoundError("Listing topilmadi")
+    listing.views += 1
+    await db.commit()
+    await db.refresh(listing, attribute_names=["photos"])
     return listing
 
 
@@ -144,6 +156,10 @@ async def update(
         await _validate_company(db, payload.company_id, current_user, listing_type)
     for field, value in payload.model_dump(exclude_unset=True).items():
         setattr(listing, field, value)
+    # Tahrirlash — rad etilgan e'lonni qayta ko'rib chiqishga avtomatik yuboradi
+    if listing.rejected:
+        listing.rejected = False
+        listing.reject_reason = None
     await db.commit()
     await db.refresh(listing, attribute_names=["photos"])
     return listing

@@ -398,10 +398,72 @@ boshlanmadi.
 Frontend'dagi Auth+Wallet+Plans ishlari `main` branch'ga commit
 qilingan **va GitHub'ga push qilingan** (2026-08-03).
 
+### Listings — Bosqich 0+1 amalga oshirildi (2026-08-04)
+
+Foydalanuvchi Listings uchun batafsil (4-bosqichli) reja so'radi.
+To'liq reja `/Users/a1111/.claude/plans/unified-wondering-prism.md`da
+(vaqtinchalik). Kelishilgan qarorlar: fayl yuklash (video/menyu/
+litsenziya) — Bosqich 2'da haqiqiy yuklash qo'shiladi (URL-only emas);
+rad etilgan e'lonni tahrirlash — backend avtomatik `rejected=False`
+qiladi; **shu sessiyada faqat Bosqich 0 (backend) va Bosqich 1
+(qidiruv+ko'rish, faqat o'qish) amalga oshirildi**.
+
+**Muhim tuzatilgan taxmin**: avvalgi tadqiqotda "backend'da ~11 ta
+amenity" deb taxmin qilingan edi — aniq tekshiruv shuni ko'rsatdi:
+**46 ta** bor edi (frontendning 90 tasidan), aniq diff 44 ta — toza,
+konfliktsiz qo'shimcha (`Amenity`/`SortOption` — DB enum EMAS, faqat
+Python validatsiya, **migratsiya kerak bo'lmadi**).
+
+**Backend** (`listings/models.py`/`service.py`/`router.py`): 44 ta
+yangi amenity qiymati (90 taga yetdi, frontend bilan bir xil);
+`SortOption.discount`; `search()`ga `query`/`min_rating` filtri;
+`get_by_id()` har chaqiriqda `views += 1`; `update()` — rad etilgan
+e'lonni tahrirlash avtomatik `rejected=False` qiladi (Bosqich 2 uchun
+oldindan tayyorlandi, hozircha frontend orqali foydalanilmaydi). 4 ta
+yangi test, jami 200 test o'tdi. Curl bilan to'liq tekshirildi.
+
+**Frontend — muhim rejadan chetlanish (shaffof qayd etiladi)**: reja
+matnida "sahifalash (pagination) qo'shiladi" deyilgan edi, lekin
+amalga oshirish paytida aniqlandiki, `SearchClient.tsx`ning mavjud
+filtrlash arxitekturasi (tur plitkalari hisoblagichi, "o'xshash
+takliflar", "yumshatilgan takliflar" — ~800 qatorli `searchCatalog.ts`)
+**butun to'plamga** asoslangan — chinakam cursor-based sahifalash shu
+arxitekturaning katta qismini qayta qurishni talab qilardi. Buning
+o'rniga: `SearchClient.tsx` endi real backend'dan **bitta so'rovda
+kattaroq to'plam** oladi (`SEARCH_POOL_SIZE=100`, `useEffect` orqali),
+mavjud client-tomon filtrlash (`filterStays` va h.k.) **o'zgarishsiz**
+shu haqiqiy ma'lumot ustida ishlaydi. Bu — hozirgi e'lonlar soni uchun
+to'g'ri va halol yechim (mock emas, real Postgres'dan), lekin **haqiqiy
+sahifalash hali yo'q** — e'lonlar soni ko'payganda alohida ish sifatida
+qo'shilishi kerak. Bu qaror hujjatda (`SearchClient.tsx` sharhida ham)
+qayd etilgan.
+
+- `src/lib/listingsAdapter.ts` (yangi) — `mapBackendListing()` (`extra`
+  JSONB'dan ~40 ta frontend maydonini tiklaydi), `buildListingSearchParams()`.
+- `src/lib/api.ts` — YANGI funksiyalar qo'shildi (`searchListingsReal()`,
+  `fetchListingById()`) — **mavjud** `getListings()`/`getListing()`/
+  `getHotListings()`/`getMostSaved()` **o'zgarishsiz qoldirildi** (bular
+  20 dan ortiq boshqa faylda ishlatiladi — homepage, admin statistika,
+  chat, bron kalendari va h.k. — Bosqich 1 doirasi faqat qidiruv+ko'rish
+  bo'lgani uchun ularga tegilmadi, keyingi navbatda o'z-o'zidan ulanadi).
+- `app/listing/[id]/page.tsx` — `generateStaticParams()` olib
+  tashlandi (`dynamic = "force-dynamic"`), real `fetchListingById()`
+  chaqiradi; topilmasa hali mock `MyListingDetail` fallback (Bosqich
+  2'gacha saqlanadi).
+
+TypeScript/ESLint toza, 355/355 test o'tdi (regressiyasiz). Brauzer/curl
+orqali tekshirildi: real e'lon yaratilib, `/listing/{real-uuid}`
+sahifasi server-tomonda uni to'g'ri render qilishi va har yuklanishda
+`views` oshishi tasdiqlandi. Commit qilinmagan hali (backend va frontend
+ikkalasida).
+
 **Keyingi sessiya shu yerdan boshlanishi kerak**:
-- **Listings** uchun alohida chuqur reja: amenities enum kengaytirish,
-  `extra` JSONB sxemasi dizayni, rasm yuklash wizard qayta qurilishi,
-  sahifalash, rad etish UI'si — yuqoridagi ro'yxatga qarang
+- Listings Bosqich 2 (xost CRUD real API'ga ulanadi, rasm/video/menyu/
+  litsenziya fayl yuklash — yangi `POST /listings/{id}/upload-file`
+  backend endpoint'i + `video_url`/`license_doc_url` ustunlari) va
+  Bosqich 3 (rad etish/moderatsiya UI) — reja faylida batafsil yozilgan
+- Haqiqiy cursor-based sahifalash (`SearchClient.tsx`) — e'lonlar soni
+  ko'payganda
 
 ## Agent skills
 

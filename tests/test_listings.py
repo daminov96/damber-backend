@@ -147,6 +147,56 @@ class TestSearch:
         assert "Match Listing" in names
         assert "Other Listing" not in names
 
+    async def test_filters_by_query_text_and_min_rating(
+        self, client: AsyncClient, b2b_headers: dict, admin_headers: dict, db_session
+    ):
+        from sqlalchemy import select
+
+        from app.modules.listings.models import Listing
+
+        found = await _create_listing(client, b2b_headers, name="Unikal Bogcha")
+        await _approve(client, found["id"], admin_headers)
+        other = await _create_listing(client, b2b_headers, name="Boshqa Dacha")
+        await _approve(client, other["id"], admin_headers)
+
+        listing_row = (
+            await db_session.execute(select(Listing).where(Listing.id == found["id"]))
+        ).scalar_one()
+        listing_row.rating = 4.9
+        await db_session.commit()
+
+        resp = await client.get("/api/v1/listings", params={"query": "Unikal"})
+        names = [item["name"] for item in resp.json()["items"]]
+        assert "Unikal Bogcha" in names
+        assert "Boshqa Dacha" not in names
+
+        resp2 = await client.get("/api/v1/listings", params={"min_rating": 4.5})
+        names2 = [item["name"] for item in resp2.json()["items"]]
+        assert "Unikal Bogcha" in names2
+        assert "Boshqa Dacha" not in names2
+
+    async def test_sort_by_discount(
+        self, client: AsyncClient, b2b_headers: dict, admin_headers: dict
+    ):
+        discounted = await _create_listing(
+            client, b2b_headers, name="Chegirmali", weekday_price=100, old_price=200
+        )
+        await _approve(client, discounted["id"], admin_headers)
+        regular = await _create_listing(client, b2b_headers, name="Oddiy", weekday_price=100)
+        await _approve(client, regular["id"], admin_headers)
+
+        resp = await client.get("/api/v1/listings", params={"sort": "discount"})
+        names = [item["name"] for item in resp.json()["items"]]
+        assert names.index("Chegirmali") < names.index("Oddiy")
+
+    async def test_views_increments_on_each_fetch(self, client: AsyncClient, b2b_headers: dict):
+        listing = await _create_listing(client, b2b_headers)
+        assert listing["views"] == 0
+
+        for expected in (1, 2, 3):
+            resp = await client.get(f"/api/v1/listings/{listing['id']}", headers=b2b_headers)
+            assert resp.json()["views"] == expected
+
 
 class TestAquaTypeAndOldPrice:
     async def test_create_aqua_listing(self, client: AsyncClient, b2b_headers: dict):
@@ -191,6 +241,26 @@ class TestModeration:
         search_resp = await client.get("/api/v1/listings", params={"region": "Tashkent"})
         names = [item["name"] for item in search_resp.json()["items"]]
         assert "Rejectable Dacha" not in names
+
+    async def test_editing_rejected_listing_resubmits_for_review(
+        self, client: AsyncClient, b2b_headers: dict, admin_headers: dict
+    ):
+        listing = await _create_listing(client, b2b_headers)
+        await client.post(
+            f"/api/v1/admin/listings/{listing['id']}/reject",
+            json={"reason": "Sabab"},
+            headers=admin_headers,
+        )
+
+        resp = await client.patch(
+            f"/api/v1/listings/{listing['id']}",
+            json={"description": "Yangilangan tavsif"},
+            headers=b2b_headers,
+        )
+        assert resp.status_code == 200, resp.text
+        body = resp.json()
+        assert body["rejected"] is False
+        assert body["reject_reason"] is None
 
     async def test_reject_requires_admin(
         self, client: AsyncClient, b2b_headers: dict

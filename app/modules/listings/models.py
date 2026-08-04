@@ -102,6 +102,60 @@ class Amenity(enum.StrEnum):
     accessible = "accessible"
     iron = "iron"
 
+    # Dam olish maskani / resort
+    heatedPool = "heatedPool"
+    beach = "beach"
+    gazebo = "gazebo"
+    horseRiding = "horseRiding"
+    bikeRental = "bikeRental"
+    skiRental = "skiRental"
+    waterSports = "waterSports"
+    animator = "animator"
+
+    # Avtomobil ijarasi
+    insuranceKasko = "insuranceKasko"
+    insuranceOsago = "insuranceOsago"
+    dashcam = "dashcam"
+    sunroof = "sunroof"
+    heatedSeats = "heatedSeats"
+    winterTires = "winterTires"
+    usbBluetooth = "usbBluetooth"
+
+    # Hostel
+    luggage = "luggage"
+    cctv = "cctv"
+    coworking = "coworking"
+    freeCoffee = "freeCoffee"
+    microwave = "microwave"
+    fridge = "fridge"
+    hairdryer = "hairdryer"
+    towels = "towels"
+
+    # Sanatoriya / kurort
+    park = "park"
+    pharmacy = "pharmacy"
+    library = "library"
+    cinema = "cinema"
+    kidsPlayground = "kidsPlayground"
+    atm = "atm"
+    excursions = "excursions"
+    mineralWater = "mineralWater"
+
+    # Ovqatlanish maskani
+    panorama = "panorama"
+    tapchan = "tapchan"
+    hookah = "hookah"
+    dancefloor = "dancefloor"
+    karaoke = "karaoke"
+    dj = "dj"
+    vipRoom = "vipRoom"
+    sportsTv = "sportsTv"
+    smokingArea = "smokingArea"
+    valet = "valet"
+    halal = "halal"
+    alcoholFree = "alcoholFree"
+    terrace = "terrace"
+
 
 class SortOption(enum.StrEnum):
     price_asc = "price_asc"
@@ -110,6 +164,7 @@ class SortOption(enum.StrEnum):
     newest = "newest"
     hot = "hot"
     most_saved = "most_saved"
+    discount = "discount"
 
 
 class Listing(Base):
