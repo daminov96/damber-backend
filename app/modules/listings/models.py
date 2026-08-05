@@ -167,6 +167,16 @@ class SortOption(enum.StrEnum):
     discount = "discount"
 
 
+class UploadFileField(enum.StrEnum):
+    """`POST /listings/{id}/upload-file` — qaysi yagona fayl yuklanmoqda.
+    Bu Listing'ni o'zgartirmaydi (faqat yuklaydi va URL qaytaradi) —
+    frontend keyin oddiy PATCH bilan tegishli maydonga yozadi."""
+
+    video = "video"
+    menu = "menu"
+    license = "license"
+
+
 class Listing(Base):
     __tablename__ = "listings"
 
@@ -199,6 +209,8 @@ class Listing(Base):
 
     license: Mapped[str | None] = mapped_column(String(255), nullable=True)
     license_expiry: Mapped[date | None] = mapped_column(Date, nullable=True)
+    license_doc_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    video_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
 
     views: Mapped[int] = mapped_column(Integer, default=0)
     saves: Mapped[int] = mapped_column(Integer, default=0)

@@ -46,6 +46,8 @@ class ListingUpdateRequest(BaseModel):
     description: str | None = None
     license: str | None = None
     license_expiry: date | None = None
+    license_doc_url: str | None = None
+    video_url: str | None = None
     discount: int | None = None
     company_id: uuid.UUID | None = None
     extra: dict | None = None
@@ -89,6 +91,8 @@ class ListingOut(BaseModel):
     description: str
     license: str | None
     license_expiry: date | None
+    license_doc_url: str | None
+    video_url: str | None
     views: int
     saves: int
     is_hot: bool
@@ -103,3 +107,7 @@ class ListingListOut(BaseModel):
     total: int
     page: int
     page_size: int
+
+
+class UploadFileOut(BaseModel):
+    url: str

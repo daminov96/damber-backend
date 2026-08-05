@@ -7,7 +7,14 @@ from sqlalchemy.orm import selectinload
 
 from app.core.exceptions import ConflictError, ForbiddenError, NotFoundError
 from app.core.storage import StoragePort
-from app.modules.listings.models import Listing, ListingPhoto, ListingType, Region, SortOption
+from app.modules.listings.models import (
+    Listing,
+    ListingPhoto,
+    ListingType,
+    Region,
+    SortOption,
+    UploadFileField,
+)
 from app.modules.listings.schemas import ListingCreateRequest, ListingUpdateRequest
 from app.modules.rent_companies.models import RentCompany
 from app.modules.reviews.models import Review
@@ -16,6 +23,17 @@ from app.modules.users.models import User, UserRole
 MAX_PHOTOS_PER_LISTING = 10
 MAX_PHOTO_SIZE_BYTES = 5 * 1024 * 1024
 ALLOWED_PHOTO_CONTENT_TYPES = {"image/jpeg", "image/png", "image/webp"}
+
+UPLOAD_FILE_MAX_SIZE_BYTES = {
+    UploadFileField.video: 50 * 1024 * 1024,
+    UploadFileField.menu: 15 * 1024 * 1024,
+    UploadFileField.license: 10 * 1024 * 1024,
+}
+UPLOAD_FILE_ALLOWED_CONTENT_TYPES = {
+    UploadFileField.video: {"video/mp4", "video/quicktime"},
+    UploadFileField.menu: {"application/pdf", "image/jpeg", "image/png"},
+    UploadFileField.license: {"application/pdf", "image/jpeg", "image/png"},
+}
 
 
 async def _get_or_404(db: AsyncSession, listing_id: uuid.UUID) -> Listing:
@@ -260,6 +278,30 @@ async def add_photos(
     await db.commit()
     await db.refresh(listing, attribute_names=["photos"])
     return listing
+
+
+async def upload_file(
+    db: AsyncSession,
+    listing_id: uuid.UUID,
+    current_user: User,
+    field: UploadFileField,
+    file: UploadFile,
+    storage: StoragePort,
+) -> str:
+    """Yagona fayl (video/menyu/litsenziya) yuklaydi va URL qaytaradi —
+    Listing'ning o'zini o'zgartirmaydi (bitta mas'uliyat: yuklash).
+    Frontend keyin oddiy PATCH bilan tegishli maydonga yozadi."""
+    listing = await _get_or_404(db, listing_id)
+    _check_owner_or_admin(listing, current_user)
+
+    allowed = UPLOAD_FILE_ALLOWED_CONTENT_TYPES[field]
+    if file.content_type not in allowed:
+        raise HTTPException(400, detail=f"Ruxsat etilmagan fayl turi: {file.content_type}")
+    content = await file.read()
+    if len(content) > UPLOAD_FILE_MAX_SIZE_BYTES[field]:
+        raise HTTPException(400, detail="Fayl hajmi ruxsat etilgan chegaradan katta")
+    await file.seek(0)
+    return await storage.save(file, subdir=f"{listing_id}/{field.value}")
 
 
 async def delete_photo(

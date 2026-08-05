@@ -326,3 +326,75 @@ class TestPhotos:
             assert delete_resp.status_code == 204
         finally:
             app.dependency_overrides.pop(get_storage, None)
+
+
+class TestUploadFile:
+    async def test_upload_video_returns_url_without_mutating_listing(
+        self, client: AsyncClient, b2b_headers: dict, tmp_path
+    ):
+        from app.core.storage import LocalDiskStorage
+
+        app.dependency_overrides[get_storage] = lambda: LocalDiskStorage(base_dir=str(tmp_path))
+        try:
+            listing = await _create_listing(client, b2b_headers)
+            assert listing["video_url"] is None
+
+            video_bytes = io.BytesIO(b"fake-mp4-bytes")
+            resp = await client.post(
+                f"/api/v1/listings/{listing['id']}/upload-file",
+                data={"field": "video"},
+                files={"file": ("clip.mp4", video_bytes, "video/mp4")},
+                headers=b2b_headers,
+            )
+            assert resp.status_code == 200, resp.text
+            url = resp.json()["url"]
+            assert url
+
+            # Yuklash Listing'ni o'zgartirmaydi — alohida PATCH kerak
+            get_resp = await client.get(f"/api/v1/listings/{listing['id']}", headers=b2b_headers)
+            assert get_resp.json()["video_url"] is None
+
+            patch_resp = await client.patch(
+                f"/api/v1/listings/{listing['id']}",
+                json={"video_url": url},
+                headers=b2b_headers,
+            )
+            assert patch_resp.json()["video_url"] == url
+        finally:
+            app.dependency_overrides.pop(get_storage, None)
+
+    async def test_upload_rejects_wrong_content_type(
+        self, client: AsyncClient, b2b_headers: dict, tmp_path
+    ):
+        from app.core.storage import LocalDiskStorage
+
+        app.dependency_overrides[get_storage] = lambda: LocalDiskStorage(base_dir=str(tmp_path))
+        try:
+            listing = await _create_listing(client, b2b_headers)
+            resp = await client.post(
+                f"/api/v1/listings/{listing['id']}/upload-file",
+                data={"field": "license"},
+                files={"file": ("clip.mp4", io.BytesIO(b"data"), "video/mp4")},
+                headers=b2b_headers,
+            )
+            assert resp.status_code == 400
+        finally:
+            app.dependency_overrides.pop(get_storage, None)
+
+    async def test_upload_requires_owner(
+        self, client: AsyncClient, b2b_headers: dict, b2c_headers: dict, tmp_path
+    ):
+        from app.core.storage import LocalDiskStorage
+
+        app.dependency_overrides[get_storage] = lambda: LocalDiskStorage(base_dir=str(tmp_path))
+        try:
+            listing = await _create_listing(client, b2b_headers)
+            resp = await client.post(
+                f"/api/v1/listings/{listing['id']}/upload-file",
+                data={"field": "menu"},
+                files={"file": ("menu.pdf", io.BytesIO(b"%PDF-"), "application/pdf")},
+                headers=b2c_headers,
+            )
+            assert resp.status_code == 403
+        finally:
+            app.dependency_overrides.pop(get_storage, None)

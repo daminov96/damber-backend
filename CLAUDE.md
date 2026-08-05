@@ -1,4 +1,4 @@
-## Loyiha holati (2026-08-03)
+## Loyiha holati (2026-08-04)
 
 Backend qurilishi bosqichma-bosqich davom etmoqda. Frontend manbasi
 (lokal, rabochiy stolda) — **eng yangi versiya**:
@@ -457,13 +457,92 @@ sahifasi server-tomonda uni to'g'ri render qilishi va har yuklanishda
 `views` oshishi tasdiqlandi. Commit qilinmagan hali (backend va frontend
 ikkalasida).
 
+### Listings — Bosqich 2 amalga oshirildi (2026-08-04, xuddi shu sessiya)
+
+Xost CRUD (yaratish/tahrirlash/o'chirish/to'xtatish) va rasm/video/menyu/
+litsenziya fayl yuklash — real backend'ga ulandi.
+
+**Backend**: `listings.video_url`/`license_doc_url` ustunlari (migratsiya
+`66ee07f668c0`), `POST /listings/{id}/upload-file` (`field: video|menu|
+license`, kontent-turi va hajm cheklovi field'ga qarab) — javob `{url}`,
+Listing'ning o'zini o'zgartirmaydi (bitta mas'uliyat). 3 ta yangi test,
+jami 203 test o'tdi. Curl bilan to'liq oqim tekshirildi (yaratish → rasm
+multipart yuklash → video upload-file → PATCH → `/mine` → pause/unpause →
+delete).
+
+**Frontend — asosiy dizayn qarori**: `listingsAdapter.ts::buildListingPayload()`
+— WizardStepPrice HAR DOIM to'liq `NewListingInput` quradi (qisman patch
+emas), shuning uchun bitta builder ham create, ham update uchun ishlatiladi.
+`TOP_LEVEL_KEYS` ro'yxatida yo'q har qanday maydon avtomatik `extra`ga
+tushadi — yangi wizard maydoni qo'shilsa bu ro'yxatni yangilash shart emas.
+`myListings.ts::updateListing()` — patch'dagi `undefined` kalitlarni
+tashlab, `current + cleanPatch`dan **to'liq obyekt qayta quradi**, keyin
+shu to'liqni yuboradi — sabab: backend PATCH `extra`ni wholesale
+almashtiradi (`exclude_unset` faqat top-level maydonlar uchun ishlaydi),
+qisman yuborilsa boshqa `extra` kalitlari (masalan `promo`) yo'qolib
+qolardi.
+
+**Media yuklash orqali**: rasmlar/video/menyu/litsenziya wizard'da hamon
+`data:` dataURL sifatida saqlanadi (mavjud siqish/preview pipeline'iga
+tegilmadi) — submit vaqtida `myListings.ts::attachMedia()` ularni
+`fetch(dataURL).blob()` orqali haqiqiy Blob'ga aylantirib yuklaydi
+(rasmlar — `/photos` multipart, video/menyu/litsenziya — `/upload-file`),
+so'ng natijaviy URL'larni yakuniy PATCH bilan biriktiradi. Video/menyu —
+`videoFileUrl`/`menuFileUrl` (fayl) tashqi havola maydonidan (`videoUrl`/
+`menuUrl`) ustuvor — xuddi shu naqsh ikkalasida ham. Litsenziya hujjati
+va menyu PDF avval **butunlay soxta edi** (faqat fayl nomi saqlanardi,
+mazmuni hech qayerda yo'q edi) — foydalanuvchi "haqiqiy yuklash" deb
+so'ragani uchun `WizardStepInfo.tsx`/`WizardStepMedia.tsx`ga video bilan
+bir xil FileReader→dataURL naqshi qo'shildi.
+
+**`myListings.ts` to'liq qayta yozildi**: `persist`/localStorage olib
+tashlandi (backend yagona haqiqiy manba — `fetchMine()` har safar qayta
+so'raydi), `pausedStaticIds`/`removedStaticIds` yo'qoldi (statik seed +
+soya-nusxa tushunchasi butunlay tugadi). `app/host/page.tsx`dagi
+`myListings` — endi to'g'ridan-to'g'ri `useMyListings().items`
+(`/listings/mine` allaqachon egalik bo'yicha filtrlaydi). `approve()`
+mahalliy/mock qoldi (faqat `AutoModeration.tsx`ning dekorativ taymeri
+uchun — haqiqiy tasdiqlash admin panelidan).
+
+**`ListingActivation.tsx`**: `finalize()` async bo'ldi (haqiqiy
+`addListing`/`updateListing` chaqiradi), muvaffaqiyatsizlikda `payError`
+ko'rsatadi; pullik reklama oqimida (`payAndPublish`) agar backend
+yaratish/yangilash muvaffaqiyatsiz bo'lsa — mahalliy (mock) hamyondan
+yechilgan summa **yangi `auth.ts::refund()` orqali qaytariladi**
+(`pay()`ning teskarisi). `localStorage` kvota-xato ko'rsatuvchi eski
+`saveIssue` bloki olib tashlandi (endi og'ir media localStorage'ga
+yozilmaydi — sabab yo'qoldi).
+
+**Shaffof qoldirilgan cheklov (kengroq ta'sir)**: `myListings.ts::items`
+semantikasi o'zgardi — avval "brauzerda yaratilgan BARCHA e'lonlar mock
+to'plami" edi (kimga tegishli bo'lishidan qat'iy nazar), endi
+`/listings/mine` orqali **faqat joriy foydalanuvchining o'zi** (va faqat
+`fetchMine()` chaqirilgan joyda, ya'ni `/host`da). Bu quyidagilarga
+ta'sir qiladi (barchasi allaqachon boshqa sabablarga ko'ra dekorativ/mock
+deb hujjatlashtirilgan yoki Bookings hali ulanmagani uchun edge-case):
+`AdminModerationQueue.tsx`/`AdminModerationStats.tsx`/`AdminTraffic.tsx`/
+`app/admin/page.tsx` (admin — global "barcha e'lonlar" ko'rinishi endi
+yo'q, faqat `seedListings`), `app/dashboard/page.tsx`ning `lookupListing`
+fallback'i va `tripItems.ts` (turist rejasidagi host e'lonlari — Bookings
+hali mock bo'lgani uchun bu deyarli hech qachon ishlamas edi allaqachon).
+Bu fayllarga tegilmadi — real admin/tourist-cross-lookup ulash alohida
+ish (Bookings integratsiyasi bilan birga hal qilinishi mantiqiy).
+
+TypeScript/ESLint toza, 355/355 test o'tdi. Curl bilan backend tomoni
+to'liq tekshirildi (yuqorida). Brauzer orqali qo'lda UI tekshiruvi
+QILINMADI (bu sessiyada Playwright/brauzer avtomatlashtirish vositasi
+yo'q edi) — keyingi sessiyada birinchi ish sifatida host kabinetida
+haqiqiy e'lon yaratish/tahrirlash/rasm-video-litsenziya yuklash/
+o'chirish/to'xtatish oqimini brauzerda qo'lda sinab ko'rish tavsiya
+etiladi.
+
 **Keyingi sessiya shu yerdan boshlanishi kerak**:
-- Listings Bosqich 2 (xost CRUD real API'ga ulanadi, rasm/video/menyu/
-  litsenziya fayl yuklash — yangi `POST /listings/{id}/upload-file`
-  backend endpoint'i + `video_url`/`license_doc_url` ustunlari) va
-  Bosqich 3 (rad etish/moderatsiya UI) — reja faylida batafsil yozilgan
+- Listings Bosqich 2'ni brauzerda qo'lda sinash (yuqoriga qarang)
+- Listings Bosqich 3 (rad etish/moderatsiya UI — frontend `Listing`ga
+  `rejected`/`rejectReason`, 4-holatli status) — reja faylida batafsil
 - Haqiqiy cursor-based sahifalash (`SearchClient.tsx`) — e'lonlar soni
   ko'payganda
+- Chat moduli frontend'ga ulanmagan hali (backend tayyor)
 
 ## Agent skills
 

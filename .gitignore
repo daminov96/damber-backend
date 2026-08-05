@@ -7,3 +7,4 @@ __pycache__/
 *.egg-info/
 .idea/
 .claude/settings.local.json
+uploads/
