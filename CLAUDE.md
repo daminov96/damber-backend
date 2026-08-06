@@ -639,19 +639,66 @@ mijozda `unread_count: 1` → `markRead` → `unread_count: 0` → begona
 foydalanuvchi 403 oladi. Brauzer orqali qo'lda UI tekshiruvi QILINMADI
 (bu sessiyada ham Playwright yo'q edi).
 
+### Admin moderatsiya navbati — e'lonlar bo'yicha real backend'ga ulandi (2026-08-06, xuddi shu sessiya)
+
+Foydalanuvchi haqiqiy oqimni sinab ko'rdi: B2B xost sifatida "Charvoq"
+mehmonxonasini joyladi (moderatsiyada turibdi), keyin o'zini ADMIN
+qilishni so'radi (ilova ichida buni qilishning yo'li yo'q — public
+register `ADMIN` rolini rad etadi, `invite-admin` esa mavjud admin
+tokenini talab qiladi — shu bois dev bazasida to'g'ridan-to'g'ri SQL
+bilan `role='ADMIN'` qilindi, ilovada boshqa hech qanday "superadmin"/
+"moderator" darajasi yo'q — bitta `ADMIN` roli, ataylab shunday
+loyihalashtirilgan). Shundan keyin aniqlandiki: **admin panelga kirib
+"Charvoq"ni ko'rib bo'lmasdi** — sabab, `AdminModerationQueue.tsx`
+`useMyListings().items`dan o'qirdi, bu esa Bosqich 2'dan beri
+`/listings/mine` orqali **faqat joriy (admin) foydalanuvchining o'z
+e'lonlari** bilan cheklangan edi (admin hech qachon e'lon yaratmaydi —
+doim bo'sh). Backend'da esa moderatsiya uchun to'liq tayyor endpointlar
+allaqachon bor edi (`GET /admin/moderation/listings`, `POST /admin/
+listings/{id}/approve`, `POST /admin/listings/{id}/reject`) — **hech
+qanday backend o'zgarishi kerak bo'lmadi**, faqat frontend ulanmagan edi.
+
+Yangi `src/store/adminModeration.ts` — `pendingListings`/
+`fetchPendingListings`/`approveListing`/`rejectListing`, real endpointlarga
+ulangan (`mapBackendListing()` qayta ishlatiladi — javob shakli
+`/listings/mine` bilan bir xil). `AdminModerationQueue.tsx`ning
+E'LON qismi shunga ulandi; rad etish endi haqiqiy sabab talab qiladi
+(oldin `removeListing()` — to'g'ridan-to'g'ri o'chirish — chaqirilardi,
+bu Bosqich 3'dagi "rejected+reason, xost ko'radi va tahrirlab qayta
+yuborishi mumkin" dizayniga zid edi; endi ikki bosqichli — "Rad etish"
+bosilganda sabab matni maydoni ochiladi, kamida 3 belgi, keyin
+`POST /admin/listings/{id}/reject`). **Tur paketlari qismi mock
+qoldirildi** — tur yaratish oqimining o'zi hali real backend'ga
+ulanmagan (bu sessiya doirasidan tashqari), shuning uchun haqiqiy
+kutayotgan tur hech qachon bo'lmaydi — ulash hozircha ma'nosiz.
+
+TypeScript/ESLint toza, 358/358 test o'tdi. Curl bilan tasdiqlandi:
+haqiqiy "Charvoq" e'loni `GET /admin/moderation/listings`da chiqishi
+(frontend chaqiradigan aynan shu endpoint); alohida bir martalik test
+e'loni bilan to'liq sikl — moderatsiyada ekan ommaviy qidiruvda
+KO'RINMAYDI → admin tasdiqlaydi → darhol ommaviy qidiruvda ko'rinadi.
+Brauzer orqali qo'lda tekshiruv QILINMADI.
+
+**Muhim izoh**: `AdminModerationStats.tsx` (statistika jadvali) va
+`AdminTraffic.tsx`/`app/admin/page.tsx`dagi boshqa hisoblagichlar
+hamon eski `useMyListings`+`seedListings` naqshida qoldi — bu sessiyada
+faqat MODERATSIYA NAVBATI (ko'rish+tasdiqlash/rad etish) tuzatildi,
+chunki foydalanuvchi aniq shuni so'radi. Statistika/traffic tab'lari
+hamon 0/noto'g'ri raqam ko'rsatishi mumkin.
+
 **Keyingi sessiya shu yerdan boshlanishi kerak**:
-- Listings Bosqich 2+3 va Chat modulini brauzerda qo'lda sinash (hali
-  birortasi ham qilinmagan)
+- Listings Bosqich 2+3, Chat moduli va Admin moderatsiya navbatini
+  brauzerda qo'lda sinash (hali birortasi ham qilinmagan)
+- `AdminModerationStats.tsx`/`AdminTraffic.tsx`/`app/admin/page.tsx`
+  hisoblagichlarini real backend'ga ulash (yuqoridagi izohga qarang —
+  `GET /admin/dashboard` allaqachon real agregatsiya beradi, faqat
+  frontend hali ulanmagan)
 - Haqiqiy cursor-based sahifalash (`SearchClient.tsx`) — e'lonlar soni
   ko'payganda
 - `NotificationBell.tsx` chat store'ga ulanmagan (faqat bron
   bildirishnomalarini ko'rsatadi) — real chat unread'ni navbar
   qo'ng'irog'iga qo'shish alohida ish
 - Bookings moduli hamon to'liq mock (backend tayyor, frontend ulanmagan)
-- Admin panel (`AdminModerationQueue`/`AdminTraffic`/`app/admin/page.tsx`)
-  hamon `seedListings` + user-scoped `useMyListings` bilan ishlaydi,
-  global "barcha e'lonlar" ko'rinishi yo'q (Bosqich 2 eslatmasiga qarang)
-  — real admin-wide listing endpoint'ga ulash alohida ish
 
 ## Agent skills
 
