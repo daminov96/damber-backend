@@ -50,8 +50,21 @@ class TestStartConversation:
 
         conversation = await _start_conversation(client, guest_headers, listing["id"])
         assert conversation["listing_id"] == listing["id"]
+        assert conversation["listing_name"] == listing["name"]
         assert conversation["unread_count"] == 0
         assert conversation["last_message"] is None
+        assert conversation["is_client"] is True
+
+    async def test_is_client_false_for_owner_view(self, client: AsyncClient, b2b_headers: dict):
+        listing = await _create_listing(client, b2b_headers)
+        guest_headers = await _register(client, "998933300009", role="B2C")
+        await _start_conversation(client, guest_headers, listing["id"])
+
+        resp = await client.get("/api/v1/chat/conversations", headers=b2b_headers)
+        assert resp.status_code == 200, resp.text
+        items = resp.json()["items"]
+        assert len(items) == 1
+        assert items[0]["is_client"] is False
 
     async def test_idempotent_for_same_client_and_owner(
         self, client: AsyncClient, b2b_headers: dict

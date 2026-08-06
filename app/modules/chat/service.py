@@ -72,10 +72,12 @@ async def get_or_create_conversation(
 class ConversationSummary:
     id: uuid.UUID
     listing_id: uuid.UUID | None
+    listing_name: str | None
     other_user: User
     last_message: Message | None
     unread_count: int
     created_at: datetime
+    is_client: bool
 
 
 async def _build_summary(
@@ -85,6 +87,12 @@ async def _build_summary(
         conversation.owner_id if user.id == conversation.client_id else conversation.client_id
     )
     other_user = await db.get(User, other_user_id)
+
+    listing_name = None
+    if conversation.listing_id:
+        listing = await db.get(Listing, conversation.listing_id)
+        if listing:
+            listing_name = listing.name
 
     last_message = (
         await db.execute(
@@ -110,10 +118,12 @@ async def _build_summary(
     return ConversationSummary(
         id=conversation.id,
         listing_id=conversation.listing_id,
+        listing_name=listing_name,
         other_user=other_user,
         last_message=last_message,
         unread_count=unread_count,
         created_at=conversation.created_at,
+        is_client=user.id == conversation.client_id,
     )
 
 

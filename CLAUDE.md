@@ -572,11 +572,82 @@ xost PATCH qilgach (`buildListingPayload()` shaklida) `rejected: false`
 bo'lib qolishi tasdiqlandi. Brauzer orqali qo'lda UI tekshiruvi
 QILINMADI (bu sessiyada ham Playwright yo'q edi).
 
+### Chat moduli frontend'ga ulandi (2026-08-06, xuddi shu sessiya)
+
+Backend allaqachon to'liq tayyor edi (2026-08-03), lekin frontend hamon
+`localStorage`dagi mock `chats`/`unread` xaritasi va soxta 2s bot-javob
+bilan ishlardi. Chuqur tadqiqot (Explore agent) backend/frontend
+kontraktini solishtirdi va uchta haqiqiy uzilishni topdi:
+
+1. **`ConversationSummaryOut`da rol maydoni yo'q edi** — frontend
+   "Mijoz chatlari" (dashboard) va "Xost chatlari" (/host) ikkita alohida
+   tabga suhbatlarni bo'lishi kerak, lekin backend javobida joriy
+   foydalanuvchi shu suhbatda `client_id` yoki `owner_id` ekanini
+   bildiruvchi hech narsa yo'q edi (faqat `other_user` — "boshqa
+   ishtirokchi"). **Backend**: `ConversationSummary`/`ConversationSummaryOut`ga
+   `is_client: bool` qo'shildi (`user.id == conversation.client_id`).
+2. Xuddi shu sababdan **`listing_name` ham yo'q edi** — frontend qaysi
+   e'lon haqida suhbat ekanini ko'rsatish uchun N+1 so'rov qilishga
+   majbur bo'lardi. **Backend**: `listing_name: str | None` qo'shildi
+   (`_build_summary()` ichida `Listing.name`dan bitta qo'shimcha
+   so'rov — `other_user` bilan bir xil naqsh).
+3. **Mock'dagi "bot javob" va "egasi nomidan soxta tasdiq xabari"
+   (`BookingModal.tsx`) haqiqiy backend'da mutlaqo imkonsiz** — xabar
+   doim JWT'dagi joriy foydalanuvchi nomidan yuboriladi, mijoz
+   "egasi nomidan" xabar yubora olmaydi (xavfsizlik nuqtai nazaridan
+   ham to'g'ri). Ikkalasi ham **butunlay olib tashlandi** (soxta edi,
+   haqiqiy muqobili yo'q) — `BookingModal.tsx` endi faqat mijozning
+   O'Z yozgan xabarini (agar bo'lsa) egasi bilan haqiqiy suhbatga
+   yuboradi (`startConversation`+`sendMessage`, bron oqimini
+   bloklamaydi).
+
+**Backend**: yuqoridagi 2 ta yangi maydon (`is_client`/`listing_name`)
+dan boshqa o'zgarish yo'q edi — qolgan hammasi (endpointlar, sezgir
+ma'lumot filtri, `(client_id, owner_id)` juftlik identifikatsiyasi,
+ishtirokchi-cheklovi) allaqachon frontend ehtiyojiga mos edi. 2 ta yangi
+test, jami 206 test o'tdi.
+
+**Frontend**: `store/chat.ts` to'liq qayta yozildi — `persist`/
+localStorage, `chatIdFor` (composite `${clientId}_${ownerId}` kalit),
+`botReply` olib tashlandi; endi `conversations: Conversation[]` +
+`messagesByConversation: Record<uuid, Message[]>`, real `id`lar,
+to'liq ISO timestamp, **xabar darajasidagi** `read_at` (avval bitta
+thread-darajasidagi boolean edi). `detectSensitiveData()` mijoz-tomon
+tezkor tekshiruv sifatida saqlanib qoldi (darhol xabar berish uchun),
+lekin server 400'i ham alohida ko'rsatiladi (ikkala regex bir xil emas —
+server biroz kengroq). `ChatThread.tsx` — websocket yo'qligi sababli
+oddiy 5s polling (`setInterval`) + thread ochilganda avtomatik
+`markRead` (avval buni parent komponentlar chaqirishi kerak edi,
+endi markazlashgan). `ListingChat.tsx` — `ownerId`+`chatIdFor` o'rniga
+`listingId` bilan `startConversation()` chaqiradi (backend `listing_id`dan
+`owner_id`ni serverda hal qiladi va o'z-e'loniga-yozish tekshiruvini
+serverda bajaradi — 409); UI darajasidagi tezkor tekshiruv (`user.id
+=== ownerId`) tarmoq so'rovisiz saqlanib qoldi. `ClientChats.tsx`/
+`HostChats.tsx` — `cid.split("_")` orqali taxminiy egasi/mijoz
+aniqlash o'rniga `is_client`/`other_user` (backend haqiqiy hal qiladi)
+ishlatadi; "qaysi e'lon haqida" endi taxmin emas, haqiqiy
+`listingName`. `app/host/page.tsx`/`app/dashboard/page.tsx` badge
+hisoblagichlari — mock xaritalarni parse qilish o'rniga
+`conversations`/`unreadCount`dan.
+
+TypeScript/ESLint toza, 358/358 test o'tdi (yangi `chat.test.ts` —
+`vi.stubGlobal("fetch")` naqshi, `auth.test.ts`ga o'xshab). Curl bilan
+to'liq oqim tekshirildi: mijoz suhbat boshlaydi → xost o'z e'loniga
+yozishga urinsa 409 → mijoz xabar yuboradi → sezgir ma'lumot 400 →
+xost ro'yxatida `is_client: false` ko'rinadi → xost javob beradi →
+mijozda `unread_count: 1` → `markRead` → `unread_count: 0` → begona
+foydalanuvchi 403 oladi. Brauzer orqali qo'lda UI tekshiruvi QILINMADI
+(bu sessiyada ham Playwright yo'q edi).
+
 **Keyingi sessiya shu yerdan boshlanishi kerak**:
-- Listings Bosqich 2+3'ni brauzerda qo'lda sinash (hali qilinmagan)
+- Listings Bosqich 2+3 va Chat modulini brauzerda qo'lda sinash (hali
+  birortasi ham qilinmagan)
 - Haqiqiy cursor-based sahifalash (`SearchClient.tsx`) — e'lonlar soni
   ko'payganda
-- Chat moduli frontend'ga ulanmagan hali (backend tayyor)
+- `NotificationBell.tsx` chat store'ga ulanmagan (faqat bron
+  bildirishnomalarini ko'rsatadi) — real chat unread'ni navbar
+  qo'ng'irog'iga qo'shish alohida ish
+- Bookings moduli hamon to'liq mock (backend tayyor, frontend ulanmagan)
 - Admin panel (`AdminModerationQueue`/`AdminTraffic`/`app/admin/page.tsx`)
   hamon `seedListings` + user-scoped `useMyListings` bilan ishlaydi,
   global "barcha e'lonlar" ko'rinishi yo'q (Bosqich 2 eslatmasiga qarang)

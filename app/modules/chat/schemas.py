@@ -42,10 +42,12 @@ class MessageListOut(BaseModel):
 class ConversationSummaryOut(BaseModel):
     id: uuid.UUID
     listing_id: uuid.UUID | None
+    listing_name: str | None
     other_user: ChatParticipantOut
     last_message: MessageOut | None
     unread_count: int
     created_at: datetime
+    is_client: bool
 
 
 class ConversationListOut(BaseModel):

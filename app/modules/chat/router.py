@@ -23,12 +23,14 @@ def _to_summary_out(summary: service.ConversationSummary) -> ConversationSummary
     return ConversationSummaryOut(
         id=summary.id,
         listing_id=summary.listing_id,
+        listing_name=summary.listing_name,
         other_user=ChatParticipantOut.model_validate(summary.other_user),
         last_message=(
             MessageOut.model_validate(summary.last_message) if summary.last_message else None
         ),
         unread_count=summary.unread_count,
         created_at=summary.created_at,
+        is_client=summary.is_client,
     )
 
 
