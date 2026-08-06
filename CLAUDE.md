@@ -1,4 +1,4 @@
-## Loyiha holati (2026-08-04)
+## Loyiha holati (2026-08-06)
 
 Backend qurilishi bosqichma-bosqich davom etmoqda. Frontend manbasi
 (lokal, rabochiy stolda) — **eng yangi versiya**:
@@ -536,13 +536,51 @@ haqiqiy e'lon yaratish/tahrirlash/rasm-video-litsenziya yuklash/
 o'chirish/to'xtatish oqimini brauzerda qo'lda sinab ko'rish tavsiya
 etiladi.
 
+Backend: commit qilingan va push qilingan (`6183a4c`). Frontend: commit
+qilingan va push qilingan (`85c66bf` — bu commit'da avvalgi
+sessiyalardan qolgan, hali commit qilinmagan katta hajmdagi frontend
+o'zgarishlar ham bor edi, masalan `WizardStepAmenities.tsx`ning 1821
+qatorlik diff'i — CLAUDE.md tarixida hujjatlashtirilgan, foydalanuvchi
+bilan aniq kelishilgan holda birga commit qilindi).
+
+### Listings — Bosqich 3 amalga oshirildi (2026-08-06)
+
+Rad etish/moderatsiya UI — backend allaqachon `rejected`/`reject_reason`
+ni `ListingOut`da qaytarardi (Bosqich 0'dan beri), lekin frontend bu
+maydonlarni umuman o'qimasdi. **Backend o'zgarishi kerak bo'lmadi.**
+
+Frontend: `Listing`ga `rejected?: boolean`/`rejectReason?: string`
+qo'shildi (`listingsAdapter.ts::mapBackendListing()` orqali to'ldiriladi,
+`buildListingPayload()`ning `TOP_LEVEL_KEYS`iga ham qo'shildi — faqat
+o'qish uchun, `extra`ga tushib qolmasin). `HostListingsTab.tsx::statusOf()`/
+`tabOf()` — endi 4-holat: Faol / Moderatsiyada / **Rad etilgan** /
+To'xtatilgan (ustuvorlik: to'xtatilgan > rad etilgan > faol > moderatsiyada);
+rad etilgan e'londa "To'xtatish"/"TOP'ga ko'tarish" tugmalari
+yashiriladi (mantiqsiz — e'lon hali chop etilmagan). `ListingManageModal.tsx`:
+`isPending` endi `!verified && !rejected` (avval rad etilgan e'lon ham
+noto'g'ri "Kutilmoqda" deb ko'rsatilardi); yangi maxsus blok — sabab
+matni + "Tahrirlash va qayta yuborish" (backend'dagi avtomatik
+unreject-on-edit'ga tayanadi, alohida "qayta yuborish" tugmasi shart
+emas) + o'chirish tugmasi.
+
+TypeScript/ESLint toza, 355/355 test o'tdi. Curl bilan to'liq oqim
+tekshirildi: dev DB'da vaqtinchalik ADMIN akkaunt orqali (mavjud
+foydalanuvchini `role='ADMIN'`ga to'g'ridan-to'g'ri SQL bilan
+ko'tarish — dev-only) e'lon rad etildi → `GET /listings/mine` orqali
+xost `rejected: true`/`reject_reason` matnini ko'rishi tasdiqlandi →
+xost PATCH qilgach (`buildListingPayload()` shaklida) `rejected: false`
+bo'lib qolishi tasdiqlandi. Brauzer orqali qo'lda UI tekshiruvi
+QILINMADI (bu sessiyada ham Playwright yo'q edi).
+
 **Keyingi sessiya shu yerdan boshlanishi kerak**:
-- Listings Bosqich 2'ni brauzerda qo'lda sinash (yuqoriga qarang)
-- Listings Bosqich 3 (rad etish/moderatsiya UI — frontend `Listing`ga
-  `rejected`/`rejectReason`, 4-holatli status) — reja faylida batafsil
+- Listings Bosqich 2+3'ni brauzerda qo'lda sinash (hali qilinmagan)
 - Haqiqiy cursor-based sahifalash (`SearchClient.tsx`) — e'lonlar soni
   ko'payganda
 - Chat moduli frontend'ga ulanmagan hali (backend tayyor)
+- Admin panel (`AdminModerationQueue`/`AdminTraffic`/`app/admin/page.tsx`)
+  hamon `seedListings` + user-scoped `useMyListings` bilan ishlaydi,
+  global "barcha e'lonlar" ko'rinishi yo'q (Bosqich 2 eslatmasiga qarang)
+  — real admin-wide listing endpoint'ga ulash alohida ish
 
 ## Agent skills
 
