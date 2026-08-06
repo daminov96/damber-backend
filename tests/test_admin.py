@@ -162,6 +162,37 @@ class TestDashboardAndAuditLog:
         assert body["users_by_role"]["B2C"] >= 1
         assert body["users_by_role"]["B2B"] >= 1
 
+    async def test_dashboard_listings_by_type_breakdown(
+        self, client: AsyncClient, admin_headers: dict
+    ):
+        owner = await _register_and_get_user(client, "998922200010", role="B2B")
+        create_resp = await client.post(
+            "/api/v1/listings",
+            json={
+                "name": "Dashboard Test Villa",
+                "type": "Villa",
+                "region": "Tashkent",
+                "weekday_price": 100,
+                "weekend_price": 150,
+                "capacity": 4,
+                "amenities": ["wifi"],
+                "description": "dashboard by_type test",
+            },
+            headers=owner["headers"],
+        )
+        assert create_resp.status_code == 201, create_resp.text
+        listing_id = create_resp.json()["id"]
+
+        resp = await client.get("/api/v1/admin/dashboard", headers=admin_headers)
+        assert resp.status_code == 200, resp.text
+        villa_stats = resp.json()["listings_by_type"]["Villa"]
+        assert villa_stats["pending"] >= 1
+
+        await client.post(f"/api/v1/admin/listings/{listing_id}/approve", headers=admin_headers)
+        resp2 = await client.get("/api/v1/admin/dashboard", headers=admin_headers)
+        villa_stats2 = resp2.json()["listings_by_type"]["Villa"]
+        assert villa_stats2["approved"] >= 1
+
     async def test_audit_log_records_admin_actions(self, client: AsyncClient, admin_headers: dict):
         registered = await _register_and_get_user(client, "998922200009", role="B2C")
         user_id = registered["user"]["id"]

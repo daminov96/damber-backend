@@ -679,26 +679,62 @@ e'loni bilan to'liq sikl — moderatsiyada ekan ommaviy qidiruvda
 KO'RINMAYDI → admin tasdiqlaydi → darhol ommaviy qidiruvda ko'rinadi.
 Brauzer orqali qo'lda tekshiruv QILINMADI.
 
-**Muhim izoh**: `AdminModerationStats.tsx` (statistika jadvali) va
-`AdminTraffic.tsx`/`app/admin/page.tsx`dagi boshqa hisoblagichlar
-hamon eski `useMyListings`+`seedListings` naqshida qoldi — bu sessiyada
-faqat MODERATSIYA NAVBATI (ko'rish+tasdiqlash/rad etish) tuzatildi,
-chunki foydalanuvchi aniq shuni so'radi. Statistika/traffic tab'lari
-hamon 0/noto'g'ri raqam ko'rsatishi mumkin.
+### Admin statistikasi real backend'ga ulandi (2026-08-06, xuddi shu sessiya)
+
+Yuqoridagi izohda qayd etilgan qoldiq — `AdminModerationStats.tsx` va
+`app/admin/page.tsx`ning "Boshqaruv" tabidagi kartochkalar shu sessiyada
+tuzatildi.
+
+**Backend**: `DashboardStatsOut`ga `listings_by_type: dict[str,
+{approved, pending}]` qo'shildi (`ListingTypeStats` — yangi kichik
+schema) — `AdminModerationStats.tsx`ning "Kategoriya bo'yicha" jadvali
+uchun, `GROUP BY (type, verified, rejected)` bitta so'rov bilan. Qolgan
+hamma maydon (`users_total`, `listings_pending`, `listings_rejected`,
+`total_revenue` va h.k.) allaqachon bor va to'g'ri edi — faqat frontend
+ulanmagan edi. 2 ta yangi test, jami 205 test o'tdi.
+
+**Frontend**: `store/adminModeration.ts`ga `dashboardStats`/
+`fetchDashboardStats()` qo'shildi (`GET /admin/dashboard`).
+`AdminModerationStats.tsx` to'liq qayta yozildi — `useMyListings`/
+`useAdmin` mahalliy hisoblagichlari o'rniga real agregatsiya (barcha
+xostlar bo'yicha, admin hech qachon o'zi e'lon yaratmasa ham to'g'ri
+ko'rsatadi). Tur paketlari qatori olib tashlandi (`0` doim ko'rsatib
+chalkashtirmasin — tur yaratish oqimi hali mock). `app/admin/page.tsx`
+"Boshqaruv" tabidagi 3 kartochka (`Jami e'lonlar`/`Moderatsiya
+kutmoqda`/`Jami daromad`) — `seedListings`+`createdListings`+**qattiq
+kodlangan `42500000`** o'rniga real `dashboardStats`dan. `Jami daromad`
+endi haqiqiy (`sum(Booking.total_amount) where completed`) — hozircha
+odatda `0`/kichik ko'rinadi, chunki Bookings moduli hali frontend'ga
+ulanmagan (haqiqiy yakunlangan bron deyarli yo'q), lekin bu SOXTA
+raqamdan ko'ra to'g'ri xulq-atvor.
+
+**Ataylab tegilmadi**: `AdminTraffic.tsx` ("Sayt trafigi tahlili" —
+tashrif/sessiya/qurilma foizlari) — bu butunlay qattiq kodlangan mock,
+komponentning o'z izohida ham shunday deb yozilgan, va bu ma'lumot
+uchun ilovada HECH QANDAY haqiqiy manba yo'q (sahifa-ko'rish/sessiya
+kuzatuvi umuman qurilmagan) — real analitika infratuzilmasi qurish
+butunlay boshqa, katta ish, foydalanuvchi so'ragan "statistika"ga
+kirmaydi deb hisoblandi.
+
+TypeScript/ESLint toza, 358/358 test o'tdi. Curl bilan `GET /admin/
+dashboard` shakli tekshirildi — foydalanuvchining haqiqiy "Charvoq"
+e'loni (`Hotel: approved: 1`) to'g'ri aks etganini tasdiqladi (bu orada
+foydalanuvchi uni brauzerda o'zi admin panel orqali tasdiqlagan edi —
+avvalgi moderatsiya-navbati tuzatishi ishlaganini tasdiqlaydi). Brauzer
+orqali qo'lda tekshiruv QILINMADI.
 
 **Keyingi sessiya shu yerdan boshlanishi kerak**:
-- Listings Bosqich 2+3, Chat moduli va Admin moderatsiya navbatini
-  brauzerda qo'lda sinash (hali birortasi ham qilinmagan)
-- `AdminModerationStats.tsx`/`AdminTraffic.tsx`/`app/admin/page.tsx`
-  hisoblagichlarini real backend'ga ulash (yuqoridagi izohga qarang —
-  `GET /admin/dashboard` allaqachon real agregatsiya beradi, faqat
-  frontend hali ulanmagan)
+- Listings Bosqich 2+3, Chat moduli, Admin moderatsiya navbati va
+  statistikasini brauzerda to'liq qo'lda sinash (hali birortasi ham
+  rasman qilinmagan, garchi foydalanuvchi Charvoq'ni real UI orqali
+  tasdiqlagan bo'lsa ham)
 - Haqiqiy cursor-based sahifalash (`SearchClient.tsx`) — e'lonlar soni
   ko'payganda
 - `NotificationBell.tsx` chat store'ga ulanmagan (faqat bron
   bildirishnomalarini ko'rsatadi) — real chat unread'ni navbar
   qo'ng'irog'iga qo'shish alohida ish
 - Bookings moduli hamon to'liq mock (backend tayyor, frontend ulanmagan)
+  — `Jami daromad` kartochkasi shu sabab hozircha kichik/0 ko'rsatadi
 
 ## Agent skills
 

@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.exceptions import ConflictError, ForbiddenError, NotFoundError
 from app.core.security import hash_password
 from app.modules.admin.models import AdminAuditLog, AuditAction
-from app.modules.admin.schemas import DashboardStatsOut, InviteAdminRequest
+from app.modules.admin.schemas import DashboardStatsOut, InviteAdminRequest, ListingTypeStats
 from app.modules.bookings.models import Booking, BookingStatus
 from app.modules.listings.models import Listing
 from app.modules.tours.models import Tour
@@ -142,6 +142,23 @@ async def get_dashboard_stats(db: AsyncSession) -> DashboardStatsOut:
         )
     ).scalar_one()
 
+    type_rows = (
+        await db.execute(
+            select(Listing.type, Listing.verified, Listing.rejected, func.count()).group_by(
+                Listing.type, Listing.verified, Listing.rejected
+            )
+        )
+    ).all()
+    listings_by_type: dict[str, ListingTypeStats] = {}
+    for listing_type, verified, rejected, count in type_rows:
+        bucket = listings_by_type.setdefault(
+            listing_type.value, ListingTypeStats(approved=0, pending=0)
+        )
+        if verified:
+            bucket.approved += count
+        elif not rejected:
+            bucket.pending += count
+
     tours_total = (await db.execute(select(func.count()).select_from(Tour))).scalar_one()
     tours_pending = (
         await db.execute(
@@ -166,6 +183,7 @@ async def get_dashboard_stats(db: AsyncSession) -> DashboardStatsOut:
         listings_total=listings_total,
         listings_pending=listings_pending,
         listings_rejected=listings_rejected,
+        listings_by_type=listings_by_type,
         tours_total=tours_total,
         tours_pending=tours_pending,
         tours_rejected=tours_rejected,

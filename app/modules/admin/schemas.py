@@ -23,12 +23,18 @@ class RejectRequest(BaseModel):
     reason: str = Field(min_length=3, max_length=500)
 
 
+class ListingTypeStats(BaseModel):
+    approved: int
+    pending: int
+
+
 class DashboardStatsOut(BaseModel):
     users_total: int
     users_by_role: dict[str, int]
     listings_total: int
     listings_pending: int
     listings_rejected: int
+    listings_by_type: dict[str, ListingTypeStats]
     tours_total: int
     tours_pending: int
     tours_rejected: int
