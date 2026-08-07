@@ -147,7 +147,7 @@ async def create(db: AsyncSession, current_user: User, payload: TourCreateReques
     )
     db.add(tour)
     await db.commit()
-    await db.refresh(tour, attribute_names=["photos"])
+    await db.refresh(tour, attribute_names=["photos", "operator", "guide"])
     return tour
 
 
@@ -159,7 +159,7 @@ async def update(
     for field, value in payload.model_dump(exclude_unset=True).items():
         setattr(tour, field, value)
     await db.commit()
-    await db.refresh(tour, attribute_names=["photos"])
+    await db.refresh(tour, attribute_names=["photos", "operator", "guide"])
     return tour
 
 
@@ -174,7 +174,7 @@ async def approve(db: AsyncSession, tour_id: uuid.UUID) -> Tour:
     tour = await _get_or_404(db, tour_id)
     tour.pending = False
     await db.commit()
-    await db.refresh(tour, attribute_names=["photos"])
+    await db.refresh(tour, attribute_names=["photos", "operator", "guide"])
     return tour
 
 
@@ -187,7 +187,7 @@ async def reject(db: AsyncSession, tour_id: uuid.UUID, reason: str) -> Tour:
     tour.rejected = True
     tour.reject_reason = reason
     await db.commit()
-    await db.refresh(tour, attribute_names=["photos"])
+    await db.refresh(tour, attribute_names=["photos", "operator", "guide"])
     return tour
 
 
@@ -241,7 +241,7 @@ async def add_photos(
 
     db.add_all(new_photos)
     await db.commit()
-    await db.refresh(tour, attribute_names=["photos"])
+    await db.refresh(tour, attribute_names=["photos", "operator", "guide"])
     return tour
 
 

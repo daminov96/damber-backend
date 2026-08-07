@@ -107,6 +107,17 @@ class TourOut(BaseModel):
     cancellation_policy: str | None
     video_url: str | None
     extra: dict
+
+    # Operator/gid profilidan o'qishda hisoblanadi (Tour'da saqlanmaydi) —
+    # tur profilga qaysi bo'lsa ("operator_id" yoki "guide_id") shundan.
+    operator_name: str
+    operator_license: str | None
+    operator_phone: str
+    operator_email: str
+    operator_website: str | None
+    operator_social_links: list[str]
+    operator_tagline: str | None
+
     pending: bool
     rejected: bool
     reject_reason: str | None

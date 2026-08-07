@@ -1,4 +1,4 @@
-## Loyiha holati (2026-08-06)
+## Loyiha holati (2026-08-07)
 
 Backend qurilishi bosqichma-bosqich davom etmoqda. Frontend manbasi
 (lokal, rabochiy stolda) — **eng yangi versiya**:
@@ -823,6 +823,111 @@ orqali qo'lda tekshiruv QILINMADI.
 - `NotificationBell.tsx` chat store'ga ulanmagan — real chat unread'ni
   navbar qo'ng'irog'iga qo'shish alohida ish
 - Bookings moduli hamon to'liq mock (backend tayyor, frontend ulanmagan)
+
+### Tours — Bosqich 2 amalga oshirildi (2026-08-07, keyingi sessiya)
+
+Operators+Guides (Bosqich 1) tugagach, foydalanuvchi "tours bilan davom
+etamiz" dedi. Backend/frontend kod qayta o'qib chiqildi (yangi context
+window — avvalgi Plan agent xulosalariga emas, kodning o'ziga tayanildi).
+Batafsil reja: `/Users/a1111/.claude/plans/unified-wondering-prism.md`
+("Tours — Bosqich 2" bo'limi qayta yozildi).
+
+**Asosiy topilma va foydalanuvchi bilan kelishilgan qaror**: `TourOut`da
+operator/gid ISMI, litsenziyasi, telefon, email umuman yo'q edi — faqat
+`operator_id`/`guide_id` (UUID). Frontendda esa `Tour.operator`/
+`operatorPhone`/... HAQIQATAN render qilinadi (`TourCard`/`TourOperatorCard`/
+`TourBookingPanel`/JSON-LD) — o'lik maydon emas. AskUserQuestion orqali
+ikkita variantdan biri tanlandi: **backend'ni boyitish** (operator/gid
+profilidan JORIY ma'lumotni o'qishda hisoblab beradigan enrichment
+maydonlari) — operator keyin telefonini o'zgartirsa, mavjud turlarda ham
+yangilanadi. Muqobil ("yaratishda `extra`ga statik nusxalash") rad etildi
+— eskirgan kontakt ma'lumoti haqiqiy muammo bo'lardi.
+
+**Backend** (migratsiyasiz): `Tour`ga `operator`/`guide` `relationship`
+(`lazy="selectin", viewonly=True`) va ustiga qurilgan property'lar
+(`operator_name`/`operator_license`/`operator_phone`/`operator_email`/
+`operator_website`/`operator_social_links`/`operator_tagline` — aynan
+bittasi to'ldirilgan profildan, gid'da `website`/`tagline` doim `None`,
+chunki `Guide` modelida bunday ustunlar yo'q). `TourOut`ga mos maydonlar
+qo'shildi (`from_attributes=True` avtomatik o'qiydi). `create`/`update`/
+`approve`/`reject`/`add_photos`dagi `db.refresh(attribute_names=[...])`
+qatorlariga `"operator"`/`"guide"` qo'shildi. 3 ta yangi test (operator-
+egalik, gid-egalik, profil yangilansa tur ham "jonli" yangilanishini
+tekshiradi) — 208 test o'tdi, `ruff` toza.
+
+**Frontend — ikkinchi topilma**: `TourForm.tsx`da "Aloqa telefoni"/"Email"
+— bo'sh qoldirilsa profildan, TO'LDIRILSA profil qiymatini bekor qiladi
+(tur-xos qo'lda kontakt, forma matni buni aniq va'da qiladi — soxta emas).
+Yechim: `extra.contactPhone`/`extra.contactEmail` faqat host qo'lda
+kiritganda saqlanadi, `toursAdapter.ts::mapBackendTour()` ustuvorlik bilan
+o'qiydi (`extra.contactPhone || dto.operator_phone`).
+
+**Uchinchi topilma** (`app/listing/[id]/page.tsx` qayta tekshirilib
+tasdiqlandi): xostning o'z moderatsiyadagi (pending) yozuvini oldindan
+ko'rish muammosi Listings Bosqich 1'da allaqachon hal qilingan edi —
+`MyListingDetail.tsx`/`MyTourDetail.tsx` shu SABABDAN saqlab qolingan
+(o'chirilmagan): server-side `fetch{X}ById()` autentifikatsiyasiz so'raladi,
+pending yozuv ko'rinmaydi → `null` → client fallback host'ning o'z
+`useMyX.items`idan (allaqachon to'ldirilgan) topib ko'rsatadi. `MyTourDetail.tsx`
+shu bois deyarli o'zgarishsiz qoldi.
+
+**Yangi**: `src/lib/toursAdapter.ts` (Listings'dagi `TOP_LEVEL_KEYS`
+subtraction naqshi — `extra` JSONB'da `date`/`itinerary`/`includes`/
+`excludes`/`priceTiers`/`departures`/`stops`/`faq`/`promo`;
+`meetingCity` — saqlanmaydi, `meeting_point`dan har safar qayta
+hisoblanadi). `src/lib/api.ts`ga `fetchPublicTours()`/`fetchTourById()`.
+
+**Qayta yozildi**: `src/store/myTours.ts` (`myOperators.ts` naqshi —
+`fetchMine`/`addTour`/`updateTour`(YANGI)/`remove`, `persist` yo'q, eski
+lokal `approve()` o'chirildi). `src/lib/types.ts::Tour` — `operatorId`/
+`guideId` endi IXTIYORIY (aynan bittasi, polimorfik), `pending`/`rejected`/
+`rejectReason` to'g'ridan-to'g'ri asosiy turga qo'shildi (`MyTour` wrapper
+turi yo'qoldi), `videoFile`/`videoFileName` OLIB TASHLANDI (Operators/
+Guides'dagi bilan bir xil — backend'da yuklangan video fayl uchun joy yo'q,
+faqat havola). `TourForm.tsx::submit()` — `operator`/`operatorLicense`/
+`operatorWebsite`/`operatorTagline` payload'dan olib tashlandi (endi
+SERVERDA hisoblanadi), o'rniga `operatorId`/`guideId` (profil turiga qarab)
+va ixtiyoriy `contactPhone`/`contactEmail`. `TourActivation.tsx` —
+`ListingActivation.tsx` naqshi (`finalize()` async, xato holatida
+`payError`, pullik oqimda muvaffaqiyatsizlikda `useAuth.refund()`).
+`TourManageModal.tsx` — `isPending = tour.pending` (to'g'ridan-to'g'ri),
+o'chirish async + xato ko'rsatish (`OperatorManageModal.tsx` naqshi).
+`ToursCatalogView.tsx` — `useMyTours` o'rniga `fetchPublicTours()` (seed +
+ommaviy, `OperatorsCatalogView.tsx` bilan bir xil naqsh — backend
+`search()` allaqachon faqat `pending=false` qaytaradi). `app/tours/[id]/
+page.tsx` — `generateStaticParams()` olib tashlandi, `dynamic=
+"force-dynamic"`, `fetchTourById()` → seed → `MyTourDetail` ketma-ketligi.
+`app/host/page.tsx` — `fetchMyTours()` mount effektiga qo'shildi.
+
+**Yon-ta'sir (kutilgan, shaffof)**: `AdminModerationQueue.tsx`ning Tours
+qismi O'CHIRILDI — `useMyTours` endi host-scoped (`/tours/mine`, faqat
+joriy foydalanuvchi), global "barcha xostlarning kutayotgan turlari"
+ko'rinishi emas edi, ko'rsatilsa chalg'ituvchi bo'lardi (Listings Bosqich
+2'dagi bilan bir xil qabul qilingan chegara — haqiqiy backend endpoint bor,
+`POST /admin/tours/{id}/approve|reject`, faqat admin UI hali ulanmagan).
+
+TypeScript/ESLint toza, 358/358 test o'tdi (regressiyasiz). Curl bilan
+to'liq oqim tasdiqlandi: operator/gid ro'yxatdan o'tish → `POST /tours`
+(operator_id bilan) → `GET`da `operator_name`/`operator_phone`/`operator_
+website`/`operator_tagline` operator profiliga mos kelishi → `extra.
+contactPhone` ustuvorligi → operator telefonini `PATCH` qilib turdagi
+`operator_phone`ning JONLI yangilanishini tasdiqlash → rasm yuklash →
+`guide_id` bilan tur (website/tagline `None`) → pending tur anonim
+so'rovda 404 va ommaviy ro'yxatda yo'qligi → barcha tozalash `DELETE`lari.
+Brauzer orqali qo'lda tekshiruv QILINMADI (bu sessiyada ham Playwright
+yo'q edi).
+
+**Keyingi sessiya shu yerdan boshlanishi kerak**:
+- Tours Bosqich 3 (moderatsiya UI) — ochiq savol: backend
+  `tours.service.update()` tahrirlashda `rejected`ni avtomatik tozalamaydi
+  (Listings'dan farqli) — UI honesty vs. kichik backend tuzatish, foydalanuvchi
+  bilan hal qilinishi kerak.
+- Tours Bosqich 4 (TourBooking — lead-capture oqimi).
+- Listings Bosqich 2+3, Chat, Admin moderatsiya/statistika, Operators+Guides,
+  Tours — barchasini brauzerda to'liq qo'lda sinash (hali birortasi ham
+  rasman qilinmagan).
+- Haqiqiy cursor-based sahifalash, `NotificationBell.tsx` chatga ulanmagan,
+  Bookings moduli hamon to'liq mock.
 
 ## Agent skills
 

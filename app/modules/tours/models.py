@@ -18,7 +18,9 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.db import Base
+from app.modules.guides.models import Guide
 from app.modules.listings.models import Region
+from app.modules.operators.models import SPEC_LABELS, TourOperator
 
 
 class TourDifficulty(enum.StrEnum):
@@ -102,6 +104,38 @@ class Tour(Base):
         cascade="all, delete-orphan",
         order_by="TourPhoto.position",
     )
+    operator: Mapped["TourOperator | None"] = relationship(lazy="selectin", viewonly=True)
+    guide: Mapped["Guide | None"] = relationship(lazy="selectin", viewonly=True)
+
+    @property
+    def operator_name(self) -> str:
+        return self.operator.name if self.operator else self.guide.name
+
+    @property
+    def operator_license(self) -> str | None:
+        return self.operator.license if self.operator else self.guide.license
+
+    @property
+    def operator_phone(self) -> str:
+        return self.operator.phone if self.operator else self.guide.phone
+
+    @property
+    def operator_email(self) -> str:
+        return self.operator.email if self.operator else self.guide.email
+
+    @property
+    def operator_website(self) -> str | None:
+        return self.operator.website if self.operator else None
+
+    @property
+    def operator_social_links(self) -> list[str]:
+        return self.operator.social_links if self.operator else self.guide.social_links
+
+    @property
+    def operator_tagline(self) -> str | None:
+        if not self.operator:
+            return None
+        return SPEC_LABELS.get(self.operator.spec_tag.value)
 
 
 class TourPhoto(Base):

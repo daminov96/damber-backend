@@ -472,3 +472,57 @@ class TestGuideOwnership:
             headers=other_headers,
         )
         assert resp.status_code == 403
+
+
+class TestOperatorEnrichment:
+    async def test_operator_owned_tour_exposes_operator_snapshot(
+        self, client: AsyncClient, b2b_headers: dict
+    ):
+        operator = await _create_operator(client, b2b_headers, website="https://test.uz")
+        tour = await _create_tour(client, b2b_headers, operator["id"])
+
+        resp = await client.get(f"/api/v1/tours/{tour['id']}", headers=b2b_headers)
+        assert resp.status_code == 200, resp.text
+        body = resp.json()
+        assert body["operator_name"] == operator["name"]
+        assert body["operator_license"] == operator["license"]
+        assert body["operator_phone"] == operator["phone"]
+        assert body["operator_email"] == operator["email"]
+        assert body["operator_website"] == operator["website"]
+        assert body["operator_tagline"]
+
+    async def test_guide_owned_tour_exposes_guide_snapshot(
+        self, client: AsyncClient, b2b_headers: dict
+    ):
+        guide = await _create_guide(client, b2b_headers)
+        resp = await client.post(
+            "/api/v1/tours",
+            json={**TOUR_PAYLOAD, "guide_id": guide["id"]},
+            headers=b2b_headers,
+        )
+        tour = resp.json()
+
+        resp = await client.get(f"/api/v1/tours/{tour['id']}", headers=b2b_headers)
+        assert resp.status_code == 200, resp.text
+        body = resp.json()
+        assert body["operator_name"] == guide["name"]
+        assert body["operator_phone"] == guide["phone"]
+        assert body["operator_email"] == guide["email"]
+        assert body["operator_website"] is None
+        assert body["operator_tagline"] is None
+
+    async def test_operator_snapshot_reflects_current_profile_after_update(
+        self, client: AsyncClient, b2b_headers: dict
+    ):
+        operator = await _create_operator(client, b2b_headers)
+        tour = await _create_tour(client, b2b_headers, operator["id"])
+
+        resp = await client.patch(
+            f"/api/v1/operators/{operator['id']}",
+            json={"phone": "998900000099"},
+            headers=b2b_headers,
+        )
+        assert resp.status_code == 200, resp.text
+
+        resp = await client.get(f"/api/v1/tours/{tour['id']}", headers=b2b_headers)
+        assert resp.json()["operator_phone"] == "998900000099"
