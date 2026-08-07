@@ -723,18 +723,106 @@ foydalanuvchi uni brauzerda o'zi admin panel orqali tasdiqlagan edi —
 avvalgi moderatsiya-navbati tuzatishi ishlaganini tasdiqlaydi). Brauzer
 orqali qo'lda tekshiruv QILINMADI.
 
+### Operators + Guides — Bosqich 1 amalga oshirildi (2026-08-06, keyingi sessiya)
+
+Foydalanuvchi Tours modulini ulashni so'radi. Tadqiqot shuni ko'rsatdi:
+"faqat Tours" mustaqil qamrov emas — `Tour.operator_id`/`guide_id`
+polimorfik bog'lanish bor (aynan bittasi, DB CHECK + Pydantic validator),
+ya'ni tur yaratishdan OLDIN haqiqiy Operator yoki Guide profili bo'lishi
+shart. Yana muhimroq topilma: frontend'da gid va turoperator profillari
+BITTA umumiy do'konda (`useMyOperators`, `TourOperator` turi) saqlanardi,
+`kind?: "operator"|"guide"` bayrog'i bilan farqlanib — backend'da esa bular
+ikkita mustaqil jadval/modul. Bu — Tours'dan oldin hal qilinishi shart
+bo'lgan haqiqiy arxitektura qarori edi. To'liq reja (Plan agent orqali
+loyihalashtirilgan, 4 bosqichli: Operators+Guides → Tours CRUD → Tours
+moderatsiya → TourBooking) `/Users/a1111/.claude/plans/unified-wondering-prism.md`da.
+Foydalanuvchi bilan kelishilgan: **shu sessiyada faqat Bosqich 1**
+(Operators+Guides), Tours keyingi sessiyalarga qoldirildi.
+
+**Backend o'zgarishi kerak bo'lmadi** — `operators`/`guides` modullari
+allaqachon to'liq tayyor edi (`GET/POST/PATCH/DELETE`, `/mine`, rasm
+yuklash, `DELETE` — profilga bog'langan tur bo'lsa 409). Ikkalasida ham
+**moderatsiya ustuni umuman yo'q** — `POST` darhol jonli qiladi.
+
+**Frontend — do'kon bo'linishi** (kelishilgan asosiy dizayn qarori):
+`TourOperator` turi operator-only'ga qisqartirildi ("GID profili
+maydonlari" bloki o'chirildi), yangi mustaqil `Guide` turi qo'shildi.
+`useMyOperators`/`myOperators.ts` qayta yozildi (real `/operators`),
+yangi `useMyGuides`/`myGuides.ts` qo'shildi (real `/guides`) — ikkalasi
+ham `myListings.ts` naqshi (`fetchMine()`, `persist` yo'q). Yangi
+`operatorsAdapter.ts`/`guidesAdapter.ts` — `extra` JSONB yo'q (ikkala
+modulda ham), shu bois faqat camelCase↔snake_case + `coords`↔`lat`/`lng`/
+`location_link` konvertatsiyasi. Umumiy `mediaUpload.ts::uploadPhotos()`
+— uchala modul (operators/guides/tours) uchun bir xil shakldagi rasm
+yuklash endpointini parametrlangan holda qayta ishlatadi.
+
+**`GuideActivation.tsx` butunlay o'chirildi** (foydalanuvchi bilan
+kelishilgan) — backend'da gid uchun HECH QANDAY moderatsiya/to'lov
+tushunchasi yo'qligi uchun mavjud "shartnoma→moderatsiya→reklama→to'lov"
+oqimi butunlay soxta edi. `GuideWizard.tsx` endi `OperatorWizard.tsx`
+kabi to'g'ridan-to'g'ri saqlaydi (yaratishda ham, tahrirlashda ham).
+Video fayl yuklash (ikkalasida ham) — backend'da fayl uchun joy yo'q
+(`video_url` oddiy matn ustuni), shuning uchun "video fayl tanlash"
+UI'si saqlanib qoldi, lekin endi ochiq matn bilan "faqat joriy seansda
+ko'rinadi, profilga saqlanmaydi" deb ogohlantiradi. Gid formasidagi
+"Yuridik ma'lumotlar" bloki (MCHJ/YaTT manzili, xarita) olib tashlandi —
+backend `Guide` modelida bu maydonlar uchun umuman joy yo'q edi.
+
+**Ommaviy katalog — "mening" vs "ommaviy" manba ajratildi** (Listings
+Bosqich 1'dagi `myListings.ts` vs `SearchClient.tsx` bo'linishi bilan bir
+xil): `OperatorsCatalogView.tsx`, `TouristZone.tsx`ning "Gidlar" tabi,
+`tripItems.ts` — endi yangi `fetchPublicOperators()`/`fetchPublicGuides()`
+(`src/lib/api.ts`, `page_size=100` pool-fetch) ishlatadi, avvalgi
+`useMyOperators`/`publishedGuides()` (faqat joriy foydalanuvchi
+ko'radigan holatga tushib qolgan bo'lardi) emas. `lib/guideListing.ts`ning
+`publishedGuides()` funksiyasi o'chirildi (endi kerak emas — ommaviy
+so'rov faqat haqiqiy yozuvlarni qaytaradi).
+
+**`/operators/{id}` sahifasi — operator VA gid bitta marshrutda**
+(ikkalasi ham shu yerga yo'naltiriladi, avvalgidek). `generateStaticParams()`
+olib tashlandi, `dynamic="force-dynamic"`; yangi `resolveProfile()` —
+avval real operator, keyin real gid, keyin statik seed (demo ma'lumot,
+real backend'da yo'q) ketma-ket tekshiradi. `OperatorDetailView.tsx` va
+uning bolalari (7 ta komponentdan 4 tasi — `OperatorContactCard`/
+`OperatorFacts`/`OperatorProfileHero`) operator+gid ma'lumotini BITTA
+komponent daraxti orqali ko'rsatadi — buni butunlay qayta qurish o'rniga
+yangi `OperatorProfileView` "ko'rish turi" (`TourOperator & Partial<Guide>
+& {kind}`) qo'shildi va `operatorToView()`/`guideToView()` adapterlari
+bilan ikkala domain turi shu umumiy ko'rinishga o'giriladi — Listings'da
+qilingan "20+ faylni qayta qurmaslik" qaroriga o'xshash pragmatik yechim.
+`MyOperatorDetail.tsx` (eski client-fallback) o'chirildi.
+
+**Shaffof qoldirilgan cheklov**: profil rasmini O'CHIRISH (mavjud
+rasmni draftdan olib tashlash) hozircha serverga yetmaydi — faqat YANGI
+(`data:`) rasmlar yuklanadi, chunki backend `DELETE /{kind}/{id}/photos/
+{photo_id}` rasm ID'sini talab qiladi, frontend esa hozircha faqat
+URL massivini saqlaydi (ID'larni kuzatmaydi). Listings'dagi kabi bilingan
+cheklov, keyingi navbatda tuzatilishi mumkin.
+
+TypeScript/ESLint toza, 358/358 test o'tdi (yangi adapter unit testlari
+yozilmadi — Listings'dagi kabi curl bilan integratsion tekshiruv
+qilindi). Curl bilan to'liq oqim tasdiqlandi: operator yaratish → rasm
+yuklash → `/mine` → public `GET /{id}` → public katalog → `PATCH`;
+gid uchun xuddi shunday + `license_doc_name` PATCH qilinganda `certified`
+avtomatik `true`ga o'tishi; operatorga tur bog'lab `DELETE` 409
+qaytarishini, gid uchun (tursiz) 204 qaytarishini tasdiqladi. Brauzer
+orqali qo'lda tekshiruv QILINMADI.
+
 **Keyingi sessiya shu yerdan boshlanishi kerak**:
+- Tours moduli — Bosqich 2 (CRUD, `toursAdapter.ts`, `TourForm.tsx`ning
+  operatorId/guideId to'g'ri ajratishi — hozircha faqat "profil bormi"
+  tekshiruvi tuzatildi, tur yaratish payload'i hali to'liq mock), keyin
+  Bosqich 3 (moderatsiya UI — backend `tours.service.update()` Listings'dan
+  farqli, tahrirlashda `rejected`ni avtomatik tozalamaydi, bu ochiq savol)
+  va Bosqich 4 (TourBooking). To'liq reja: `/Users/a1111/.claude/plans/unified-wondering-prism.md`
 - Listings Bosqich 2+3, Chat moduli, Admin moderatsiya navbati va
   statistikasini brauzerda to'liq qo'lda sinash (hali birortasi ham
-  rasman qilinmagan, garchi foydalanuvchi Charvoq'ni real UI orqali
-  tasdiqlagan bo'lsa ham)
+  rasman qilinmagan)
 - Haqiqiy cursor-based sahifalash (`SearchClient.tsx`) — e'lonlar soni
   ko'payganda
-- `NotificationBell.tsx` chat store'ga ulanmagan (faqat bron
-  bildirishnomalarini ko'rsatadi) — real chat unread'ni navbar
-  qo'ng'irog'iga qo'shish alohida ish
+- `NotificationBell.tsx` chat store'ga ulanmagan — real chat unread'ni
+  navbar qo'ng'irog'iga qo'shish alohida ish
 - Bookings moduli hamon to'liq mock (backend tayyor, frontend ulanmagan)
-  — `Jami daromad` kartochkasi shu sabab hozircha kichik/0 ko'rsatadi
 
 ## Agent skills
 
