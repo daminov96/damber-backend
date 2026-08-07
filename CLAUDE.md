@@ -988,15 +988,82 @@ rad etadi → egasi PATCH qiladi (haqiqiy `buildTourPayload()` shaklida,
 `pending=True` o'zgarishsiz qolishi ham tekshirildi. Brauzer orqali
 qo'lda tekshiruv QILINMADI (bu sessiyada ham Playwright yo'q edi).
 
+### Tours — Bosqich 4 amalga oshirildi (2026-08-07, keyingi sessiya)
+
+Bosqich 3'dan keyin "bosqich 4-ni boshlaymiz". `TourBooking` backend
+moduli (to'lovsiz lead-capture — eskrov/wallet aloqasi yo'q) allaqachon
+to'liq tayyor va test qilingan edi; frontend esa **butunlay mock** edi
+(`useTourBookings` — `persist`/localStorage, hech qanday backend
+chaqiruv yo'q). **Ikkinchi bo'shliq**: xost tomonida bron so'rovlarini
+ko'rish/tasdiqlash/rad etish uchun UI UMUMAN yo'q edi (ulanmagan emas —
+hech qachon qurilmagan; `HostBookingsTab.tsx` boshqa domenga — Listing
+bronlariga — tegishli, aralashtirilmadi).
+
+**AskUserQuestion orqali hal qilingan ochiq savollar**:
+1. **Jo'nash-sana narxi**: mijoz tur sahifasida jo'nash sanasini tanlab,
+   O'SHA sananing narxidan hisoblangan taxminiy summani ko'radi
+   (`TourBookingPanel.tsx`/`TourBookingForm.tsx`da allaqachon bor edi),
+   lekin backend `total_estimate`ni doim asosiy `tour.price`dan hisoblab,
+   tanlangan sanani umuman bilmas/saqlamas edi. **Backend'ga `departure`
+   ustuni qo'shildi** (migratsiya `d4acc803f481`) — narx
+   `tour.extra.departures[]`dan mos sana topilsa O'SHANDAN, topilmasa
+   asosiy narxdan hisoblanadi; xost so'ralgan sanani ko'radi.
+2. **Doira**: FAQAT mijoz-so'rov + xost-javob oqimi. Dashboard'da
+   mijozning o'z so'rovlarini ko'rish ro'yxati — keyingi ishga
+   qoldirildi.
+
+**Backend**: `tours/models.py::TourBooking.departure`,
+`schemas.py::TourBookingCreateRequest`/`TourBookingOut.departure`,
+`service.py::create_booking()` — `tour.extra.get("departures", [])`dan
+mos yozuv (`date == payload.departure`) topilsa uning narxidan, aks
+holda asosiy narxdan hisoblaydi. **Yon-bug tuzatildi**: `tours.service.py
+::delete()` bog'liq `TourBooking` bo'lsa avval xom 500 (FK violation)
+qaytarardi — Operators/Guides'dagi bilan bir xil oldindan-tekshirish
+naqshi bilan endi toza 409 qaytaradi (bu bug ilgari hech qachon
+ko'rinmagan edi — chunki haqiqiy TourBooking hech qachon yaratilmagan
+edi, frontend to'liq mock bo'lgani uchun; shu bosqichda haqiqiy bron
+yaratilgach curl bilan tasdiqlash paytida topildi). 4 ta yangi test —
+213 test o'tdi, `ruff` toza.
+
+**Frontend**: yangi `src/lib/tourBookingsAdapter.ts` (Operators/Guides
+bilan bir xil sodda naqsh, `extra` JSONB yo'q). `src/store/tourBookings.ts`
+qayta yozildi — `persist`/mock o'rniga real `submitRequest()` (`POST
+/tours/{id}/bookings`). `TourBookingForm.tsx` — `submit()` async,
+tarmoq xatosi ko'rsatiladi, anonim foydalanuvchi uchun `BookingPanel.tsx`
+bilan bir xil `if (!user) return openAuth("login")` naqshi qo'shildi
+(avval bu tekshiruv umuman yo'q edi — mock oqim autentifikatsiyasiz ham
+"ishlardi"). Yangi `src/store/tourBookingsHost.ts` — xost tomoni:
+`fetchForTours(tourIds)` (backend'da agregat "mening barcha turlarim
+bo'yicha" endpoint yo'q, har bir tur uchun alohida `GET /tours/{id}/
+bookings` — tur soni kichik bo'lgani uchun murosaga asoslangan yechim),
+`confirm()`/`reject()`. `HostToursTab.tsx`ga yangi uchinchi bo'lim "Tur
+bron so'rovlari" (mavjud profil/tur bo'limlaridan keyin, `myTours`
+o'zgarganda o'z-o'zidan `fetchForTours` chaqiradi) — holat chipi
+(Kutilmoqda/Tasdiqlandi/Rad etildi), faqat Kutilmoqda holatida Tasdiqlash/
+Rad etish tugmalari.
+
+TypeScript/ESLint toza, 361/361 test o'tdi (regressiyasiz). Curl bilan
+to'liq oqim tasdiqlandi: tur yaratish (jo'nash sanasi narxi bilan) →
+mijoz bron so'rovi (departure ko'rsatib) → `total_estimate` mos narxdan
+(350000×2=700000) hisoblanganini tasdiqlash → xost `GET /tours/{id}/
+bookings` orqali ko'rishi → `confirm` → holat `confirmed`ga o'tishi →
+(shu jarayonda topilgan) bog'liq bronli turni o'chirishga urinish 409
+qaytarishi. Brauzer orqali qo'lda tekshiruv QILINMADI (bu sessiyada ham
+Playwright yo'q edi).
+
+**Tours modulining barcha 4 bosqichi (Operators+Guides → CRUD →
+moderatsiya UI → TourBooking) shu bilan tugallandi.**
+
 **Keyingi sessiya shu yerdan boshlanishi kerak**:
-- Tours Bosqich 4 (TourBooking — lead-capture oqimi).
+- Dashboard'da mijozning o'z tur bron so'rovlari ro'yxati (Bosqich 4'dan
+  ataylab qoldirilgan qoldiq).
 - Admin panelning Tours moderatsiya UI'si (backend endpoint bor, frontend
   ulanmagan — Bosqich 2'dan qolgan eslatma).
 - Listings Bosqich 2+3, Chat, Admin moderatsiya/statistika, Operators+Guides,
   Tours — barchasini brauzerda to'liq qo'lda sinash (hali birortasi ham
   rasman qilinmagan).
 - Haqiqiy cursor-based sahifalash, `NotificationBell.tsx` chatga ulanmagan,
-  Bookings moduli hamon to'liq mock.
+  Bookings moduli (Listing bronlari) hamon to'liq mock.
 
 ## Agent skills
 

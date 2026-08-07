@@ -426,6 +426,91 @@ class TestBookingInquiry:
         assert resp.status_code == 200
         assert resp.json()["total"] == 1
 
+    async def test_departure_price_used_when_matched(
+        self, client: AsyncClient, b2b_headers: dict, admin_headers: dict, b2c_headers: dict
+    ):
+        operator = await _create_operator(client, b2b_headers)
+        tour = await _create_tour(
+            client,
+            b2b_headers,
+            operator["id"],
+            price=200000,
+            extra={"departures": [{"date": "2026-yil 20-avgust", "price": 350000, "seatsLeft": 5}]},
+        )
+        await _approve_tour(client, tour["id"], admin_headers)
+
+        resp = await client.post(
+            f"/api/v1/tours/{tour['id']}/bookings",
+            json={
+                "name": "Mijoz",
+                "phone": "998911112233",
+                "people": 2,
+                "departure": "2026-yil 20-avgust",
+            },
+            headers=b2c_headers,
+        )
+        assert resp.status_code == 201, resp.text
+        body = resp.json()
+        assert body["total_estimate"] == 700000
+        assert body["departure"] == "2026-yil 20-avgust"
+
+    async def test_unmatched_departure_falls_back_to_base_price(
+        self, client: AsyncClient, b2b_headers: dict, admin_headers: dict, b2c_headers: dict
+    ):
+        operator = await _create_operator(client, b2b_headers)
+        tour = await _create_tour(client, b2b_headers, operator["id"], price=200000)
+        await _approve_tour(client, tour["id"], admin_headers)
+
+        resp = await client.post(
+            f"/api/v1/tours/{tour['id']}/bookings",
+            json={
+                "name": "Mijoz",
+                "phone": "998911112233",
+                "people": 2,
+                "departure": "2026-yil 1-sentabr",
+            },
+            headers=b2c_headers,
+        )
+        assert resp.status_code == 201, resp.text
+        body = resp.json()
+        assert body["total_estimate"] == 400000
+        assert body["departure"] == "2026-yil 1-sentabr"
+
+    async def test_owner_rejects_booking(
+        self, client: AsyncClient, b2b_headers: dict, admin_headers: dict, b2c_headers: dict
+    ):
+        operator = await _create_operator(client, b2b_headers)
+        tour = await _create_tour(client, b2b_headers, operator["id"])
+        await _approve_tour(client, tour["id"], admin_headers)
+
+        create_resp = await client.post(
+            f"/api/v1/tours/{tour['id']}/bookings",
+            json={"name": "Mijoz", "phone": "998911112233", "people": 1},
+            headers=b2c_headers,
+        )
+        booking_id = create_resp.json()["id"]
+
+        resp = await client.post(
+            f"/api/v1/tour-bookings/{booking_id}/reject", headers=b2b_headers
+        )
+        assert resp.status_code == 200, resp.text
+        assert resp.json()["status"] == "rejected"
+
+    async def test_cannot_delete_tour_with_bookings(
+        self, client: AsyncClient, b2b_headers: dict, admin_headers: dict, b2c_headers: dict
+    ):
+        operator = await _create_operator(client, b2b_headers)
+        tour = await _create_tour(client, b2b_headers, operator["id"])
+        await _approve_tour(client, tour["id"], admin_headers)
+        await client.post(
+            f"/api/v1/tours/{tour['id']}/bookings",
+            json={"name": "Mijoz", "phone": "998911112233", "people": 1},
+            headers=b2c_headers,
+        )
+
+        resp = await client.delete(f"/api/v1/tours/{tour['id']}", headers=b2b_headers)
+        assert resp.status_code == 409
+
 
 class TestGuideOwnership:
     async def test_create_with_guide_id_succeeds_and_copies_owner(

@@ -162,6 +162,9 @@ class TourBooking(Base):
     phone: Mapped[str] = mapped_column(String(20))
     people: Mapped[int] = mapped_column(Integer)
     total_estimate: Mapped[float] = mapped_column(Numeric(14, 2))
+    # Mijoz tanlagan jo'nash sanasi (informatsion) — narx hisoblashda
+    # `tour.extra.departures[]`dan mos yozuv topilsa ishlatiladi.
+    departure: Mapped[str | None] = mapped_column(String(100), nullable=True)
 
     status: Mapped[TourBookingStatus] = mapped_column(
         Enum(TourBookingStatus, name="tour_booking_status"), default=TourBookingStatus.pending

@@ -170,6 +170,11 @@ async def update(
 async def delete(db: AsyncSession, tour_id: uuid.UUID, current_user: User) -> None:
     tour = await _get_or_404(db, tour_id)
     _check_owner_or_admin(tour, current_user)
+    has_bookings = (
+        await db.execute(select(TourBooking.id).where(TourBooking.tour_id == tour_id).limit(1))
+    ).first()
+    if has_bookings:
+        raise ConflictError("Bu turga bron so'rovlari mavjud — avval ularni ko'rib chiqing")
     await db.delete(tour)
     await db.commit()
 
@@ -296,13 +301,22 @@ async def create_booking(
     db: AsyncSession, client: User, tour_id: uuid.UUID, payload: TourBookingCreateRequest
 ) -> TourBooking:
     tour = await _get_or_404(db, tour_id)
+
+    unit_price = float(tour.price)
+    if payload.departure:
+        for d in tour.extra.get("departures", []):
+            if d.get("date") == payload.departure and d.get("price"):
+                unit_price = float(d["price"])
+                break
+
     booking = TourBooking(
         tour_id=tour.id,
         client_id=client.id,
         name=payload.name,
         phone=payload.phone,
         people=payload.people,
-        total_estimate=float(tour.price) * payload.people,
+        departure=payload.departure,
+        total_estimate=unit_price * payload.people,
     )
     db.add(booking)
     await db.commit()

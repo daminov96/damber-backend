@@ -138,6 +138,7 @@ class TourBookingCreateRequest(BaseModel):
     name: str = Field(min_length=2, max_length=150)
     phone: str = Field(min_length=9, max_length=20)
     people: int = Field(gt=0)
+    departure: str | None = None
 
 
 class TourBookingOut(BaseModel):
@@ -148,6 +149,7 @@ class TourBookingOut(BaseModel):
     client_id: uuid.UUID
     name: str
     phone: str
+    departure: str | None
     people: int
     total_estimate: float
     status: TourBookingStatus
