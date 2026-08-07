@@ -917,12 +917,81 @@ so'rovda 404 va ommaviy ro'yxatda yo'qligi → barcha tozalash `DELETE`lari.
 Brauzer orqali qo'lda tekshiruv QILINMADI (bu sessiyada ham Playwright
 yo'q edi).
 
+### Tours — Bosqich 3 amalga oshirildi (2026-08-07, keyingi sessiya)
+
+Bosqich 2'dan keyin foydalanuvchi "bosqich 3-ni boshlaymiz" dedi. Ochiq
+savol AskUserQuestion orqali hal qilindi: **backend'ga Listings bilan
+bir xil tuzatish qo'shildi** — `tours.service.update()` endi tahrirlashda
+`rejected`/`reject_reason`ni avtomatik tozalaydi (`pending` o'zgarmaydi —
+tur hamon qayta ko'rib chiqishni kutadi, faqat rad etish holati
+tozalanadi). Yangi test (rad etish → tahrirlash → `rejected=False`
+tasdiqlanadi) — 209 test o'tdi.
+
+**Kutilmagan, lekin muhim topilma** (rejalashtirish bosqichida kod
+o'qib aniqlandi): `TourForm.tsx` — **faqat yaratish uchun** edi, umuman
+tahrirlash rejimi yo'q (`OperatorWizard.tsx`/`GuideWizard.tsx`/
+`ListingWizard.tsx`ning hammasida `openEdit(id)` bor edi, `TourForm`da
+yo'q). "Tahrirlash va qayta yuborish" tugmasi shu rejimsiz ma'nosiz
+bo'lardi — Bosqich 2 `updateTour()`ni store'ga qo'shgan edi, lekin unga
+hech qanday UI ulanmagan edi. Shu bois Bosqich 3 asosiy hajmi — Tours
+uchun to'liq tahrirlash rejimini qurish bo'ldi.
+
+**`useTourForm`ga `editId`/`openEdit(id)` qo'shildi** (`OperatorWizard.tsx`
+naqshi). Yangi **`draftFromTour()`** — mavjud turni forma qoralamasiga
+aylantiradi (barcha dinamik massivlar: stops/hotels, departures, price
+tiers, itinerary, includes/excludes, photos).
+
+**Aniqlangan murakkablik**: tur sanasi (`f.date`/`deps[].date`) yaratishda
+`formatUzDate()` orqali inson-o'qiydigan satrga aylantiriladi ("2026-yil
+15-avgust"), lekin bu formatning teskarisi HECH QACHON bo'lmagan edi —
+`<input type="date">` ISO kutadi. Yangi **`parseUzDate()`**
+(`src/lib/format.ts`, yangi `format.test.ts` bilan — bu faylda avval test
+umuman yo'q edi) shu bo'shliqni to'ldiradi.
+
+**Kontakt-override noaniqligi (ataylab soddalashtirilgan qaror)**:
+`Tour.operatorPhone`/`operatorEmail` — backend profil-standart va per-tur
+override BIRLASHTIRILGAN qiymat, mavjud turdan "bu override edimi yoki
+standartmi" ajratib bo'lmaydi. Yangi maydon qo'shish o'rniga —
+tahrirlashda bu ikki maydon doim BO'SH boshlanadi (yaratishdagi bilan bir
+xil boshlang'ich holat). Natija: tur avval qo'lda kontakt bilan saqlangan
+bo'lsa, keyingi istalgan tahrirlash bu override'ni profil standartiga
+qaytaradi — bilingan cheklum, Operators/Guides'dagi "rasmni o'chirib
+bo'lmaydi" bilan bir xil toifada.
+
+**Profil-yechish tuzatishi** (to'g'ri ishlash uchun muhim): yaratishda
+profil "ENG OXIRGI" bo'yicha topiladi (xost joriy faol profiliga tur
+qo'shadi) — lekin bu tahrirlashda noto'g'ri bo'lishi mumkin edi (xostda
+2+ operator profili bo'lsa). Tuzatildi: tahrirlash rejimida profil aynan
+shu turning `operatorId`/`guideId`si bo'yicha topiladi.
+
+**`TourManageModal.tsx`**: 3-holatli status (Rad etilgan/Moderatsiyada/
+Faol — `HostToursTab.tsx::tourStatus()` ham shunga kengaytirildi), rad
+etish banneri (sabab + "Tahrirlash va qayta yuborish"), "Tur paketlariga
+o'tish" (kam foydali — shunchaki modalni yopardi) o'rniga "Tahrirlash"
+ActionCard (seed turlar uchun ko'rsatilmaydi). **"Tur sahifasini ochish"
+ATAYLAB pending/rejected holatda ham ko'rsatiladi** (Listings'dan farqli
+qaror) — `/tours/[id]`ning `MyTourDetail` fallback'i xostning o'z
+moderatsiyadagi turini to'g'ri ko'rsata oladi (Bosqich 2), yashirishning
+hojati yo'q.
+
+**Eslatma**: `react-hooks/set-state-in-effect` linter qoidasi
+`draftFromTour()` natijasini bir nechta alohida `useState`ga
+tarqatuvchi hidratsiya effektida ishga tushdi (`OperatorWizard.tsx`da
+bitta `setDraft()` bo'lgani uchun ishga tushmagan edi) — React 18
+batching'i sababli xavfsiz, izohli `eslint-disable-next-line` bilan
+o'tkazib yuborildi.
+
+TypeScript/ESLint toza, 361/361 test o'tdi (yangi `format.test.ts` bilan,
+regressiyasiz). Curl bilan to'liq oqim tasdiqlandi: tur yaratish → admin
+rad etadi → egasi PATCH qiladi (haqiqiy `buildTourPayload()` shaklida,
+`extra` to'liq) → `rejected=False`/`reject_reason=null` tasdiqlanadi,
+`pending=True` o'zgarishsiz qolishi ham tekshirildi. Brauzer orqali
+qo'lda tekshiruv QILINMADI (bu sessiyada ham Playwright yo'q edi).
+
 **Keyingi sessiya shu yerdan boshlanishi kerak**:
-- Tours Bosqich 3 (moderatsiya UI) — ochiq savol: backend
-  `tours.service.update()` tahrirlashda `rejected`ni avtomatik tozalamaydi
-  (Listings'dan farqli) — UI honesty vs. kichik backend tuzatish, foydalanuvchi
-  bilan hal qilinishi kerak.
 - Tours Bosqich 4 (TourBooking — lead-capture oqimi).
+- Admin panelning Tours moderatsiya UI'si (backend endpoint bor, frontend
+  ulanmagan — Bosqich 2'dan qolgan eslatma).
 - Listings Bosqich 2+3, Chat, Admin moderatsiya/statistika, Operators+Guides,
   Tours — barchasini brauzerda to'liq qo'lda sinash (hali birortasi ham
   rasman qilinmagan).

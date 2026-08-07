@@ -526,3 +526,27 @@ class TestOperatorEnrichment:
 
         resp = await client.get(f"/api/v1/tours/{tour['id']}", headers=b2b_headers)
         assert resp.json()["operator_phone"] == "998900000099"
+
+    async def test_editing_rejected_tour_clears_rejection(
+        self, client: AsyncClient, b2b_headers: dict, admin_headers: dict
+    ):
+        operator = await _create_operator(client, b2b_headers)
+        tour = await _create_tour(client, b2b_headers, operator["id"])
+
+        resp = await client.post(
+            f"/api/v1/admin/tours/{tour['id']}/reject",
+            json={"reason": "Rasm sifati past"},
+            headers=admin_headers,
+        )
+        assert resp.status_code == 200, resp.text
+        assert resp.json()["rejected"] is True
+
+        resp = await client.patch(
+            f"/api/v1/tours/{tour['id']}",
+            json={"description": "Yangilangan tavsif"},
+            headers=b2b_headers,
+        )
+        assert resp.status_code == 200, resp.text
+        body = resp.json()
+        assert body["rejected"] is False
+        assert body["reject_reason"] is None

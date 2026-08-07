@@ -158,6 +158,10 @@ async def update(
     _check_owner_or_admin(tour, current_user)
     for field, value in payload.model_dump(exclude_unset=True).items():
         setattr(tour, field, value)
+    # Tahrirlash — rad etilgan turni qayta ko'rib chiqishga avtomatik yuboradi
+    if tour.rejected:
+        tour.rejected = False
+        tour.reject_reason = None
     await db.commit()
     await db.refresh(tour, attribute_names=["photos", "operator", "guide"])
     return tour
