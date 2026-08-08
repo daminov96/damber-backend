@@ -1150,13 +1150,45 @@ tasdiqlandi) → yana `cancel` (mijoz tomonidan, siyosatga ko'ra qaytarim)
 409 qaytarishi. Brauzer orqali qo'lda tekshiruv QILINMADI (bu sessiyada
 ham Playwright yo'q edi).
 
+### Bookings — Bosqich 2 amalga oshirildi (2026-08-08, keyingi sessiya)
+
+Bosqich 1'dan keyin "bookings 2-bosqichi" so'raldi — CLAUDE.md'da aniq
+ikkita band sifatida qayd etilgan edi: bildirishnomalar va
+`ReviewModal.tsx`ning bron-gating tekshiruvi. Fayllar qayta o'qildi
+(yangi context window).
+
+**Muammo**: Bosqich 1'da `useAuth().bookings` Dining uchun saqlab
+qolingan edi, lekin haqiqiy (Dining bo'lmagan) bronlar endi shu massivga
+umuman yozilmaydi. Uch joy — `Navbar.tsx` (profil menyusi badge'i),
+`NotificationBell.tsx` (qo'ng'iroq dropdown'i), `ReviewModal.tsx`
+("Tasdiqlangan mehmon" tekshiruvi) — hamon shu ESKI massivdan o'qirdi.
+
+**Dizayn**: `src/lib/notifications.ts::getNotifications()` — sof
+funksiya, **o'zgarishsiz qoldi** (mantig'i to'g'ri edi, faqat qaysi
+massiv unga uzatilishi noto'g'ri edi). Foydalanuvchi roli B2B/ADMIN
+YOKI B2C (o'zaro istisno qiluvchi) bo'lgani uchun ikkita real do'kondan
+BIRINI rolga qarab tanlash yetarli — birlashtirish shart emas.
+`Navbar.tsx`/`NotificationBell.tsx`: `bookings = isHost ?
+useBookingsHost().items : useMyBookings().items`. Fetch mas'uliyati
+`Navbar.tsx`da (ilova bo'ylab doim o'rnatilgan — Chat'ning
+`fetchConversations()` bir nechta mount nuqtasidan chaqirilishi bilan
+bir xil naqsh), `NotificationBell.tsx` faqat ota allaqachon to'ldirgan
+do'kondan o'qiydi. `ReviewModal.tsx`: `useMyBookings()`ga o'tkazildi
+(sharh — faqat mijoz tushunchasi), **o'zi mustaqil** `fetchMine()`
+chaqiradi (bu modal ikki joydan render qilinadi — `dashboard/page.tsx`
+allaqachon so'raydi, `ListingReviews.tsx` so'ramaydi — shu bois
+o'z-o'zidan fetch qilish ikkala joyda ham to'g'ri ishlashini
+ta'minlaydi).
+
+TypeScript/ESLint toza, 361/361 test o'tdi (regressiyasiz,
+`getNotifications()`ning o'zi o'zgarmagani uchun `notifications.test.ts`
+ham o'zgarishsiz qoldi). Brauzer orqali qo'lda tekshiruv QILINMADI (bu
+sessiyada ham Playwright yo'q edi) — kod ko'rib chiqish orqali barcha
+yangi kod yo'llari to'g'ri do'kondan o'qishi tasdiqlandi.
+
 **Keyingi sessiya shu yerdan boshlanishi kerak**:
-- Bookings Bosqich 2 — bildirishnomalar (`getNotifications()`,
-  `Navbar.tsx`/`NotificationBell.tsx`) host+mijoz bronlarini birlashtirib
-  olishi kerak (ikkita alohida paginatsiyalangan endpoint).
-- `ReviewModal.tsx`ning bron-gating tekshiruvi haqiqiy bronlarga o'tishi.
 - Restoran (Dining) stol-bron oqimi — real backend'ga ulash yoki ataylab
-  mock qoldirish qarori.
+  mock qoldirish qarori (Bookings'dan qolgan yagona ochiq qoldiq).
 - Dashboard'da mijozning o'z tur bron so'rovlari ro'yxati (Tours Bosqich
   4'dan ataylab qoldirilgan qoldiq).
 - Admin panelning Tours moderatsiya UI'si (backend endpoint bor, frontend
@@ -1164,7 +1196,7 @@ ham Playwright yo'q edi).
 - Listings Bosqich 2+3, Chat, Admin moderatsiya/statistika, Operators+Guides,
   Tours, Bookings — barchasini brauzerda to'liq qo'lda sinash (hali
   birortasi ham rasman qilinmagan).
-- Haqiqiy cursor-based sahifalash, `NotificationBell.tsx` chatga ulanmagan.
+- Haqiqiy cursor-based sahifalash.
 
 ## Agent skills
 
