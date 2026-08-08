@@ -105,6 +105,29 @@ class TestOwnership:
         get_resp = await client.get(f"/api/v1/listings/{listing['id']}", headers=admin_headers)
         assert get_resp.status_code == 404
 
+    async def test_cannot_delete_listing_with_bookings(
+        self, client: AsyncClient, b2b_headers: dict, b2c_headers: dict
+    ):
+        # prepayPercent=0 — bron uchun avans yechilmaydi, mijoz balansi
+        # ahamiyatsiz (bu test faqat o'chirish-bloklashni tekshiradi).
+        listing = await _create_listing(client, b2b_headers, extra={"prepayPercent": 0})
+        resp = await client.post(
+            "/api/v1/bookings",
+            json={
+                "listing_id": listing["id"],
+                "check_in": "2026-09-10",
+                "check_out": "2026-09-12",
+                "guests": 1,
+                "guest_name": "Mijoz",
+                "guest_phone": "998911112233",
+            },
+            headers=b2c_headers,
+        )
+        assert resp.status_code == 201, resp.text
+
+        delete_resp = await client.delete(f"/api/v1/listings/{listing['id']}", headers=b2b_headers)
+        assert delete_resp.status_code == 409
+
 
 class TestSearch:
     async def test_filters_by_type_region_price_amenities(

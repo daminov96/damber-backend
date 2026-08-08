@@ -1054,16 +1054,117 @@ Playwright yo'q edi).
 **Tours modulining barcha 4 bosqichi (Operators+Guides → CRUD →
 moderatsiya UI → TourBooking) shu bilan tugallandi.**
 
+### Bookings (Listing bronlari) — Bosqich 1 amalga oshirildi (2026-08-08, keyingi sessiya)
+
+Tours 4 bosqichi tugagach, foydalanuvchi "booking modulini boshlaymiz"
+dedi — loyihadagi ENG KATTA qolgan modul. 2 ta parallel Explore agent
+orqali chuqur tadqiqot o'tkazildi (backend to'liq API/service/pricing
+xaritasi, frontend'da 11+ joyda ishlatilishi). Backend (`app/modules/
+bookings/`) allaqachon to'liq tayyor va yaxshi test qilingan edi (narx
+hisoblash, eskrov, wallet integratsiyasi, 4 xil bekor qilish siyosati
+bo'yicha qaytarim) — frontend esa 100% mock: `useAuth` ichida bitta
+yassi `bookings: Booking[]` massivi, 6 ta harakat funksiyasi hammasi
+eskrov/qaytarim matematikasini mahalliy qayta hisoblardi.
+
+**Foydalanuvchi bilan kelishilgan qarorlar** (AskUserQuestion):
+1. **Sessiya doirasi**: FAQAT asosiy sikl — bron yaratish (haqiqiy
+   eskrov bilan), xost paneli (tasdiqlash/rad etish/yakunlash/qayta
+   tiklash), mijoz "Bronlarim" (bekor qilish). Kalendar/analitika/
+   bildirishnomalar/restoran-stol — keyingi bosqichlarga qoldirildi.
+2. **`payment` maydoni** (naqd/karta/wallet/click/payme) — backend'da
+   UMUMAN yo'q edi (faqat wallet orqali avans) — frontend turidan
+   olib tashlandi.
+
+**Muhim arxitektura qarori — `GET /bookings/quote` ULANMADI**: tekshirib
+tasdiqlandi — frontend'ning mavjud mahalliy narx hisoblash
+(`BookingPanel.tsx`, `BookingModal.tsx`) backend `pricing.py` bilan
+BITTA xatti-harakatgacha bir xil edi (`src/lib/promoCodes.ts`ning
+`PROMO_CODES`i backend'nikiga so'z-ma-so'z mos). Yagona mahalliy
+bila olmaydigan narsa — boshqa mehmonlarning band sanalari bilan
+kesishish — bu haqiqiy `POST /bookings` chaqirilganda 409 sifatida
+tabiiy ravishda ushlanadi, alohida `quote` so'rovi qo'shimcha
+kechikishdan boshqa foyda bermas edi.
+
+**Muhim arxitektura qarori — Dining (restoran) oqimi TO'LIQ TEGILMADI**:
+`TableBookingModal.tsx` (`addBooking()`) va `BookingModal.tsx`ning Dining
+turi uchun maxsus filiali (avtomatik tasdiqlash) — ikkalasi ham ataylab
+o'zgarishsiz qoldirildi (kelishilgan doiradan tashqari). `useAuth`dagi
+`bookings`/`addBooking`/`setBookingStatus`/`createBooking` shu sabab
+SAQLANIB QOLDI (o'chirilmadi — Dining hamon ularga tayanadi), faqat
+`cancelBooking`/`releaseEscrow`/`restoreBooking` o'chirildi (ularning
+yagona chaqiruvchilari — `HostBookingsTab.tsx`/`dashboard/page.tsx` —
+shu bosqichda haqiqiy do'konlarga o'tkazildi, boshqa hech kim chaqirmasdi).
+
+**Shaffof qoldirilgan cheklov**: eski `bookings` massivi endi FAQAT
+Dining tomonidan yozib boriladi — `Navbar.tsx`/`NotificationBell.tsx`
+(bildirishnoma belgilari) va `ReviewModal.tsx` (bron-gating) hamon shu
+ESKI massivdan o'qiydi va **yangi haqiqiy (Dining bo'lmagan) bronlarni
+ko'rsatmaydi** (kelishilgan doiradan tashqari, keyingi bosqichga
+qoldirildi). `BookingCalendar.tsx` va `ListingManageModal.tsx` esa —
+foydalanuvchi so'ragan "asosiy sikl"dan tashqari bo'lsa-da — YANGI
+haqiqiy `bookingsHost.ts`ga o'tkazildi (arzon, bitta import almashtirish;
+aks holda ular yangi bronlarni ko'rsatmay chalkashtirar edi — Tours
+Bosqich 2'dagi `TourForm.tsx` profil-tuzatish bilan bir xil "himoya
+uchun kerakli" qaror). `HostAnalytics.tsx` avtomatik to'g'irlandi (faqat
+prop orqali `Booking[]` oladi, manba `app/host/page.tsx`da almashgani
+uchun).
+
+**Backend — kod o'zgarishi shart emas edi**, LEKIN tekshiruv paytida
+haqiqiy yon-bug topildi va tuzatildi: `listings.service.py::delete()`
+bog'liq `Booking` bo'lsa avval xom 500 (FK violation) qaytarardi —
+Operators/Guides/Tours'dagi bilan bir xil oldindan-tekshirish naqshi
+bilan endi toza 409 qaytaradi (bu bug ilgari hech qachon ko'rinmagan
+edi — chunki haqiqiy Listing bronlari hech qachon yaratilmagan edi,
+frontend to'liq mock bo'lgani uchun; shu bosqichda haqiqiy bron
+yaratilgach curl bilan tasdiqlash paytida topildi — Tours Bosqich 4'da
+xuddi shu bug tur bronlari uchun ham topilib tuzatilgan edi). 1 ta
+yangi test — 214 test o'tdi, `ruff` toza.
+
+**Frontend**: yangi `src/lib/bookingsAdapter.ts` (`mapBackendBooking()`,
+status enum → Uzbek label). Yangi `src/store/myBookings.ts` (mijoz
+tomoni — `fetchMine`/`create`/`cancel`) va `src/store/bookingsHost.ts`
+(xost tomoni — `fetchHost`/`confirm`/`reject`/`complete`/`restore`,
+`restore` xato bo'lsa endi eski qattiq kodlangan umumiy matn o'rniga
+backend'ning HAQIQIY xabarini qaytaradi). `src/lib/types.ts::Booking`ga
+`prepayPercent` qo'shildi (backend `BookingOut`da bor, avval frontendda
+yo'q edi — bron yaratilgan paytdagi avans foizini saqlaydi, listing
+keyin o'zgartirsa ham bronga ta'sir qilmaydi). `BookingModal.tsx::finalize()`
+aniq filialga bo'lindi: Dining — o'zgarishsiz mock, boshqa turlar —
+haqiqiy `myBookings.create()`. `HostBookingsTab.tsx`/`dashboard/page.tsx`
+— barcha harakatlar (tasdiqlash/rad etish/yakunlash/qayta tiklash/bekor
+qilish) haqiqiy backend'ga ulandi, xato holatlari va band (`busy`)
+tugma holati qo'shildi (avval hech qachon muvaffaqiyatsiz bo'lmasdi).
+Qaytarim OLDINDAN KO'RISH (`refund.ts::guestRefund()`) o'zgarishsiz
+qoldi — bu faqat UI ko'rsatkichi, haqiqiy qaytarim backend javobidan
+keladi.
+
+TypeScript/ESLint toza, 361/361 test o'tdi (regressiyasiz). Curl bilan
+to'liq oqim tasdiqlandi: xost e'lon yaratadi → mijoz hamyoniga pul
+tashlaydi → `POST /bookings` (haqiqiy eskrov, avans yechiladi) → xost
+`GET /bookings/host` orqali ko'radi → `confirm` → `complete` (eskrov
+xost hamyoniga chiqadi, aniq summalar tasdiqlandi) → alohida bron:
+`reject` (to'liq qaytarim, balans aniq tiklanishi tasdiqlandi) →
+`restore` (qayta ushlab qolish, balans aniq qayta yechilishi
+tasdiqlandi) → yana `cancel` (mijoz tomonidan, siyosatga ko'ra qaytarim)
+→ (shu jarayonda topilgan) bog'liq bronli e'lonni o'chirishga urinish
+409 qaytarishi. Brauzer orqali qo'lda tekshiruv QILINMADI (bu sessiyada
+ham Playwright yo'q edi).
+
 **Keyingi sessiya shu yerdan boshlanishi kerak**:
-- Dashboard'da mijozning o'z tur bron so'rovlari ro'yxati (Bosqich 4'dan
-  ataylab qoldirilgan qoldiq).
+- Bookings Bosqich 2 — bildirishnomalar (`getNotifications()`,
+  `Navbar.tsx`/`NotificationBell.tsx`) host+mijoz bronlarini birlashtirib
+  olishi kerak (ikkita alohida paginatsiyalangan endpoint).
+- `ReviewModal.tsx`ning bron-gating tekshiruvi haqiqiy bronlarga o'tishi.
+- Restoran (Dining) stol-bron oqimi — real backend'ga ulash yoki ataylab
+  mock qoldirish qarori.
+- Dashboard'da mijozning o'z tur bron so'rovlari ro'yxati (Tours Bosqich
+  4'dan ataylab qoldirilgan qoldiq).
 - Admin panelning Tours moderatsiya UI'si (backend endpoint bor, frontend
-  ulanmagan — Bosqich 2'dan qolgan eslatma).
+  ulanmagan — Tours Bosqich 2'dan qolgan eslatma).
 - Listings Bosqich 2+3, Chat, Admin moderatsiya/statistika, Operators+Guides,
-  Tours — barchasini brauzerda to'liq qo'lda sinash (hali birortasi ham
-  rasman qilinmagan).
-- Haqiqiy cursor-based sahifalash, `NotificationBell.tsx` chatga ulanmagan,
-  Bookings moduli (Listing bronlari) hamon to'liq mock.
+  Tours, Bookings — barchasini brauzerda to'liq qo'lda sinash (hali
+  birortasi ham rasman qilinmagan).
+- Haqiqiy cursor-based sahifalash, `NotificationBell.tsx` chatga ulanmagan.
 
 ## Agent skills
 

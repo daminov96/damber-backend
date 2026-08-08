@@ -7,6 +7,7 @@ from sqlalchemy.orm import selectinload
 
 from app.core.exceptions import ConflictError, ForbiddenError, NotFoundError
 from app.core.storage import StoragePort
+from app.modules.bookings.models import Booking
 from app.modules.listings.models import (
     Listing,
     ListingPhoto,
@@ -188,6 +189,11 @@ async def delete(
 ) -> None:
     listing = await _get_or_404(db, listing_id)
     _check_owner_or_admin(listing, current_user)
+    has_bookings = (
+        await db.execute(select(Booking.id).where(Booking.listing_id == listing_id).limit(1))
+    ).first()
+    if has_bookings:
+        raise ConflictError("Bu e'longa bron so'rovlari mavjud — avval ularni ko'rib chiqing")
     for photo in listing.photos:
         try:
             await storage.delete(photo.url)
