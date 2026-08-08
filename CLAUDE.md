@@ -1186,13 +1186,37 @@ ham o'zgarishsiz qoldi). Brauzer orqali qo'lda tekshiruv QILINMADI (bu
 sessiyada ham Playwright yo'q edi) — kod ko'rib chiqish orqali barcha
 yangi kod yo'llari to'g'ri do'kondan o'qishi tasdiqlandi.
 
+### Admin panelning Tours moderatsiya UI'si ulandi (2026-08-08, keyingi sessiya)
+
+Bookings Bosqich 2'dan keyin "endi nimani qilamiz" so'raldi — qolgan
+ishlar ro'yxati taqdim etildi, foydalanuvchi AskUserQuestion orqali shu
+kichik, aniq ishni tanladi (backend endpoint allaqachon bor edi, faqat
+frontend admin UI ulanmagan — Tours Bosqich 2'dan qolgan eslatma).
+Backend'da kod o'zgarishi shart emas edi (`GET /admin/moderation/tours`,
+`POST /admin/tours/{id}/approve|reject` — barchasi allaqachon tayyor va
+test qilingan).
+
+**Frontend**: `src/store/adminModeration.ts`ga `pendingTours`/
+`fetchPendingTours`/`approveTour`/`rejectTour` qo'shildi — mavjud
+`pendingListings`/`fetchPendingListings`/`approveListing`/`rejectListing`
+bilan AYNAN bir xil naqsh, `toursAdapter.ts::mapBackendTour()` qayta
+ishlatilgan. `AdminModerationQueue.tsx` — ikkinchi grid qo'shildi (Tur
+paketlari), o'z mustaqil rad etish-holati bilan (listings bilan
+aralashib ketmasligi uchun alohida `rejectingTourId`/`tourReason`/
+`tourBusy`).
+
+TypeScript/ESLint toza, 361/361 test o'tdi (regressiyasiz). Curl bilan
+to'liq oqim tasdiqlandi: operator+tur yaratildi → admin moderatsiya
+navbatida ko'rindi → rad etildi (navbatdan chiqdi, `rejected`/
+`reject_reason` to'g'ri) → ikkinchi tur → admin tasdiqladi (navbatdan
+chiqdi, ommaviy qidiruvda darhol ko'rindi). Brauzer orqali qo'lda
+tekshiruv QILINMADI (bu sessiyada ham Playwright yo'q edi).
+
 **Keyingi sessiya shu yerdan boshlanishi kerak**:
 - Restoran (Dining) stol-bron oqimi — real backend'ga ulash yoki ataylab
   mock qoldirish qarori (Bookings'dan qolgan yagona ochiq qoldiq).
 - Dashboard'da mijozning o'z tur bron so'rovlari ro'yxati (Tours Bosqich
   4'dan ataylab qoldirilgan qoldiq).
-- Admin panelning Tours moderatsiya UI'si (backend endpoint bor, frontend
-  ulanmagan — Tours Bosqich 2'dan qolgan eslatma).
 - Listings Bosqich 2+3, Chat, Admin moderatsiya/statistika, Operators+Guides,
   Tours, Bookings — barchasini brauzerda to'liq qo'lda sinash (hali
   birortasi ham rasman qilinmagan).
