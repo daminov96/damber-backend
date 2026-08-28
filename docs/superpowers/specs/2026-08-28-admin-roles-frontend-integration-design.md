@@ -185,6 +185,10 @@ Backend bilan ishlaydigan yangi store (mavjud `myListings.ts` naqshiga o'xshab):
 
 Frontend: `store/admin.test.ts`dan o'chirilgan funksiyalar (`addAdmin`/`removeAdmin`/`setAdminRole`) testlari olib tashlanadi; yangi `adminUsers.ts` uchun testlar yoziladi (mavjud `myListings`/`chat` store testlari naqshiga o'xshab, `apiFetch` mock qilinadi).
 
+### `tests/conftest.py` — mavjud fixture yangilanishi
+
+`admin_user`/`admin_headers` fixture'lari hozir `admin_role`siz ADMIN yaratadi. `ROLE_MATRIX.get(admin_role, frozenset())` — `admin_role=None` bo'lsa hech qanday modulga ruxsat bermaydi, bu mavjud testlarni (`admin_headers` ishlatuvchi hammasi) buzadi. Shu sababli `_create_user`ga `admin_role: AdminRole | None = None` parametri qo'shiladi, `admin_user` fixture endi `admin_role=AdminRole.super` bilan yaratiladi (yagona test-ADMIN — production migratsiyadagi "birinchi ADMIN = super" qoidasiga mos). Rol-cheklangan testlar uchun yangi `moderator_user`/`moderator_headers` fixture qo'shiladi (`admin_role=AdminRole.moderator`).
+
 ## Doiradan tashqari
 
 - `adminAdjustWallet`/`adminSetPlanFor` ekvivalenti backend'da — balans qo'lda tuzatish, tarif qo'lda tayinlash: alohida spec/ish, bu safar qamrab olinmaydi (foydalanuvchi tasdiqladi).

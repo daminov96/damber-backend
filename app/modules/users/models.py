@@ -2,7 +2,7 @@ import enum
 import uuid
 from datetime import date, datetime
 
-from sqlalchemy import Boolean, Date, DateTime, Enum, Numeric, String, func
+from sqlalchemy import Boolean, CheckConstraint, Date, DateTime, Enum, Numeric, String, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.db import Base
@@ -14,6 +14,19 @@ class UserRole(enum.StrEnum):
     ADMIN = "ADMIN"
 
 
+class AdminRole(enum.StrEnum):
+    """ADMIN foydalanuvchisining panel ichidagi huquq darajasi.
+
+    Faqat `role == UserRole.ADMIN` bo'lganda mazmunli — boshqa rollarda
+    doim `None`. Qaysi daraja qaysi panel bo'limiga kira olishi
+    `app/modules/admin/permissions.py::ROLE_MATRIX`da belgilanadi."""
+
+    super = "super"
+    moderator = "moderator"
+    finance = "finance"
+    content = "content"
+
+
 class BillingCycle(enum.StrEnum):
     monthly = "monthly"
     yearly = "yearly"
@@ -21,6 +34,13 @@ class BillingCycle(enum.StrEnum):
 
 class User(Base):
     __tablename__ = "users"
+
+    __table_args__ = (
+        CheckConstraint(
+            "(role = 'ADMIN') OR (admin_role IS NULL)",
+            name="ck_users_admin_role_only_for_admin",
+        ),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     name: Mapped[str] = mapped_column(String(100))
@@ -45,5 +65,9 @@ class User(Base):
 
     is_banned: Mapped[bool] = mapped_column(Boolean, default=False)
     banned_reason: Mapped[str | None] = mapped_column(String(500), nullable=True)
+
+    admin_role: Mapped[AdminRole | None] = mapped_column(
+        Enum(AdminRole, name="admin_role"), nullable=True
+    )
 
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

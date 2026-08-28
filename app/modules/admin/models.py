@@ -18,13 +18,20 @@ class AuditAction(enum.StrEnum):
     user_ban = "user_ban"
     user_unban = "user_unban"
     admin_invite = "admin_invite"
+    admin_role_change = "admin_role_change"
+    admin_delete = "admin_delete"
 
 
 class AdminAuditLog(Base):
     __tablename__ = "admin_audit_log"
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
-    admin_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), index=True)
+    # `SET NULL` — admin hisobi o'chirilgan (`DELETE /admin/users/{id}`)
+    # bo'lsa ham audit tarixi saqlanadi, faqat "kim qilgani" ma'lumoti
+    # yo'qoladi (nima qilingani `action`/`target_*`da qoladi).
+    admin_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True
+    )
 
     action: Mapped[AuditAction] = mapped_column(Enum(AuditAction, name="admin_audit_action"))
     target_type: Mapped[str] = mapped_column(String(50))

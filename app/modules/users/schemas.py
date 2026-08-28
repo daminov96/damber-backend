@@ -3,7 +3,7 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
-from app.modules.users.models import UserRole
+from app.modules.users.models import AdminRole, UserRole
 
 
 class RegisterRequest(BaseModel):
@@ -47,3 +47,4 @@ class UserOut(BaseModel):
     city: str | None
     avatar_url: str | None
     is_banned: bool
+    admin_role: AdminRole | None

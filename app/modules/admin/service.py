@@ -11,7 +11,7 @@ from app.modules.admin.schemas import DashboardStatsOut, InviteAdminRequest, Lis
 from app.modules.bookings.models import Booking, BookingStatus
 from app.modules.listings.models import Listing
 from app.modules.tours.models import Tour
-from app.modules.users.models import User, UserRole
+from app.modules.users.models import AdminRole, User, UserRole
 
 
 def _normalize_phone(phone: str) -> str:
@@ -81,12 +81,83 @@ async def invite_admin(db: AsyncSession, admin: User, payload: InviteAdminReques
         email=payload.email,
         password_hash=hash_password(payload.password),
         role=UserRole.ADMIN,
+        admin_role=payload.admin_role,
     )
     db.add(new_admin)
     await db.commit()
     await db.refresh(new_admin)
     await log_action(db, admin, AuditAction.admin_invite, "user", new_admin.id, phone)
     return new_admin
+
+
+async def _count_supers(db: AsyncSession) -> int:
+    stmt = select(func.count()).select_from(User).where(User.admin_role == AdminRole.super)
+    return (await db.execute(stmt)).scalar_one()
+
+
+async def _get_admin_or_404(db: AsyncSession, user_id: uuid.UUID) -> User:
+    user = await _get_user_or_404(db, user_id)
+    if user.role != UserRole.ADMIN:
+        raise NotFoundError("Admin foydalanuvchi topilmadi")
+    return user
+
+
+async def _require_super_acting_on_other_admin(
+    db: AsyncSession, user_id: uuid.UUID, current_admin: User, self_action_error: str
+) -> User:
+    """`set_admin_role`/`delete_admin`ning umumiy old sharti: chaqiruvchi
+    super bo'lishi va o'ziga emas, boshqa admin hisobiga qo'llanishi kerak.
+    Tasdiqlangan nishonni qaytaradi (topilmasa/ADMIN bo'lmasa 404)."""
+    if current_admin.admin_role != AdminRole.super:
+        raise ForbiddenError("Bu amal uchun super admin huquqi kerak")
+    if user_id == current_admin.id:
+        raise ForbiddenError(self_action_error)
+    return await _get_admin_or_404(db, user_id)
+
+
+async def _guard_last_super(db: AsyncSession, target: User, conflict_message: str) -> None:
+    """`target` tizimdagi yagona super bo'lsa (va shu holicha qolmoqchi
+    bo'lmasa) ConflictError qaytaradi.
+
+    Eslatma: chaqiruvchi (`current_admin`) har doim super va `target`dan
+    boshqa hisob (`_require_super_acting_on_other_admin` tufayli), shuning
+    uchun bu shart HTTP orqali bitta so'rov bilan hech qachon ishga
+    tushmaydi (kamida 2 ta super bor bo'lib chiqadi). Baribir qoladi —
+    defensiv: kelajakda o'z-o'zini tekshiruvidan mustaqil boshqa chaqiruv
+    yo'li paydo bo'lsa ham himoya beradi."""
+    if target.admin_role == AdminRole.super and await _count_supers(db) <= 1:
+        raise ConflictError(conflict_message)
+
+
+async def set_admin_role(
+    db: AsyncSession, user_id: uuid.UUID, current_admin: User, new_role: AdminRole
+) -> User:
+    target = await _require_super_acting_on_other_admin(
+        db, user_id, current_admin, "O'zingizning huquq darajangizni o'zgartira olmaysiz"
+    )
+    if new_role != AdminRole.super:
+        await _guard_last_super(
+            db, target, "Tizimdagi yagona super adminning huquqini pasaytirib bo'lmaydi"
+        )
+
+    target.admin_role = new_role
+    await db.commit()
+    await db.refresh(target)
+    await log_action(
+        db, current_admin, AuditAction.admin_role_change, "user", target.id, new_role.value
+    )
+    return target
+
+
+async def delete_admin(db: AsyncSession, user_id: uuid.UUID, current_admin: User) -> None:
+    target = await _require_super_acting_on_other_admin(
+        db, user_id, current_admin, "O'zingizni o'chira olmaysiz"
+    )
+    await _guard_last_super(db, target, "Tizimdagi yagona super adminni o'chirib bo'lmaydi")
+
+    await log_action(db, current_admin, AuditAction.admin_delete, "user", target.id, target.phone)
+    await db.delete(target)
+    await db.commit()
 
 
 async def list_users(

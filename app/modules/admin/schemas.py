@@ -4,6 +4,7 @@ from datetime import datetime
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
 from app.modules.admin.models import AuditAction
+from app.modules.users.models import AdminRole
 from app.modules.users.schemas import UserOut
 
 
@@ -16,7 +17,12 @@ class InviteAdminRequest(BaseModel):
     surname: str
     phone: str
     password: str = Field(min_length=6)
+    admin_role: AdminRole
     email: EmailStr | None = None
+
+
+class SetAdminRoleRequest(BaseModel):
+    admin_role: AdminRole
 
 
 class RejectRequest(BaseModel):
@@ -45,7 +51,7 @@ class AuditLogEntryOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: uuid.UUID
-    admin_id: uuid.UUID
+    admin_id: uuid.UUID | None
     action: AuditAction
     target_type: str
     target_id: uuid.UUID

@@ -11,7 +11,7 @@ from app.core.config import get_settings
 from app.core.db import Base, get_db
 from app.core.security import create_token, hash_password
 from app.main import app
-from app.modules.users.models import User, UserRole
+from app.modules.users.models import AdminRole, User, UserRole
 
 TEST_DATABASE_URL = os.getenv(
     "TEST_DATABASE_URL",
@@ -61,7 +61,9 @@ async def client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
     app.dependency_overrides.clear()
 
 
-async def _create_user(db_session: AsyncSession, role: UserRole, phone: str) -> User:
+async def _create_user(
+    db_session: AsyncSession, role: UserRole, phone: str, admin_role: AdminRole | None = None
+) -> User:
     user = User(
         name="Test",
         surname="User",
@@ -69,6 +71,7 @@ async def _create_user(db_session: AsyncSession, role: UserRole, phone: str) -> 
         email=f"{phone}@test.local",
         password_hash=hash_password("password123"),
         role=role,
+        admin_role=admin_role,
     )
     db_session.add(user)
     await db_session.commit()
@@ -88,7 +91,15 @@ async def b2b_user(db_session: AsyncSession) -> User:
 
 @pytest_asyncio.fixture
 async def admin_user(db_session: AsyncSession) -> User:
-    return await _create_user(db_session, UserRole.ADMIN, "998900000003")
+    # Yagona test-ADMIN — production migratsiyadagi "birinchi ADMIN = super"
+    # qoidasiga mos (aks holda ROLE_MATRIX'da hech qanday modulga ega bo'lmay,
+    # admin_headers ishlatuvchi barcha mavjud testlar 403 bilan buzilardi).
+    return await _create_user(db_session, UserRole.ADMIN, "998900000003", AdminRole.super)
+
+
+@pytest_asyncio.fixture
+async def moderator_user(db_session: AsyncSession) -> User:
+    return await _create_user(db_session, UserRole.ADMIN, "998900000004", AdminRole.moderator)
 
 
 def _auth_headers(user: User) -> dict[str, str]:
@@ -109,3 +120,8 @@ def b2b_headers(b2b_user: User) -> dict[str, str]:
 @pytest.fixture
 def admin_headers(admin_user: User) -> dict[str, str]:
     return _auth_headers(admin_user)
+
+
+@pytest.fixture
+def moderator_headers(moderator_user: User) -> dict[str, str]:
+    return _auth_headers(moderator_user)

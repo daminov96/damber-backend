@@ -5,15 +5,17 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.db import get_db
-from app.core.deps import require_role
+from app.core.deps import require_admin_module, require_role
 from app.modules.admin import service
 from app.modules.admin.models import AuditAction
+from app.modules.admin.permissions import AdminModule
 from app.modules.admin.schemas import (
     AdminUserListOut,
     AuditLogListOut,
     BanUserRequest,
     DashboardStatsOut,
     InviteAdminRequest,
+    SetAdminRoleRequest,
 )
 from app.modules.listings import service as listings_service
 from app.modules.listings.schemas import ListingListOut
@@ -25,16 +27,21 @@ from app.modules.users.schemas import UserOut
 router = APIRouter(prefix="/api/v1/admin", tags=["admin"])
 
 AdminUser = Annotated[User, Depends(require_role(UserRole.ADMIN))]
+AnalyticsAdmin = Annotated[User, Depends(require_admin_module(AdminModule.analytics))]
+UsersModuleAdmin = Annotated[User, Depends(require_admin_module(AdminModule.users))]
+TeamAdmin = Annotated[User, Depends(require_admin_module(AdminModule.team))]
+ModerationAdmin = Annotated[User, Depends(require_admin_module(AdminModule.moderation))]
+SettingsAdmin = Annotated[User, Depends(require_admin_module(AdminModule.settings))]
 
 
 @router.get("/dashboard", response_model=DashboardStatsOut)
-async def dashboard(current_user: AdminUser, db: AsyncSession = Depends(get_db)):
+async def dashboard(current_user: AnalyticsAdmin, db: AsyncSession = Depends(get_db)):
     return await service.get_dashboard_stats(db)
 
 
 @router.get("/users", response_model=AdminUserListOut)
 async def list_users(
-    current_user: AdminUser,
+    current_user: UsersModuleAdmin,
     db: AsyncSession = Depends(get_db),
     role: UserRole | None = Query(None),
     is_banned: bool | None = Query(None),
@@ -48,16 +55,33 @@ async def list_users(
 
 @router.post("/users/invite-admin", response_model=UserOut, status_code=201)
 async def invite_admin(
-    payload: InviteAdminRequest, current_user: AdminUser, db: AsyncSession = Depends(get_db)
+    payload: InviteAdminRequest, current_user: TeamAdmin, db: AsyncSession = Depends(get_db)
 ):
     return await service.invite_admin(db, current_user, payload)
+
+
+@router.patch("/users/{user_id}/admin-role", response_model=UserOut)
+async def set_admin_role(
+    user_id: uuid.UUID,
+    payload: SetAdminRoleRequest,
+    current_user: TeamAdmin,
+    db: AsyncSession = Depends(get_db),
+):
+    return await service.set_admin_role(db, user_id, current_user, payload.admin_role)
+
+
+@router.delete("/users/{user_id}", status_code=204)
+async def delete_admin(
+    user_id: uuid.UUID, current_user: TeamAdmin, db: AsyncSession = Depends(get_db)
+):
+    await service.delete_admin(db, user_id, current_user)
 
 
 @router.post("/users/{user_id}/ban", response_model=UserOut)
 async def ban_user(
     user_id: uuid.UUID,
     payload: BanUserRequest,
-    current_user: AdminUser,
+    current_user: UsersModuleAdmin,
     db: AsyncSession = Depends(get_db),
 ):
     return await service.ban_user(db, user_id, current_user, payload.reason)
@@ -65,14 +89,14 @@ async def ban_user(
 
 @router.post("/users/{user_id}/unban", response_model=UserOut)
 async def unban_user(
-    user_id: uuid.UUID, current_user: AdminUser, db: AsyncSession = Depends(get_db)
+    user_id: uuid.UUID, current_user: UsersModuleAdmin, db: AsyncSession = Depends(get_db)
 ):
     return await service.unban_user(db, user_id, current_user)
 
 
 @router.get("/moderation/listings", response_model=ListingListOut)
 async def moderation_listings(
-    current_user: AdminUser,
+    current_user: ModerationAdmin,
     db: AsyncSession = Depends(get_db),
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
@@ -83,7 +107,7 @@ async def moderation_listings(
 
 @router.get("/moderation/tours", response_model=TourListOut)
 async def moderation_tours(
-    current_user: AdminUser,
+    current_user: ModerationAdmin,
     db: AsyncSession = Depends(get_db),
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
@@ -94,7 +118,7 @@ async def moderation_tours(
 
 @router.get("/audit-log", response_model=AuditLogListOut)
 async def audit_log(
-    current_user: AdminUser,
+    current_user: SettingsAdmin,
     db: AsyncSession = Depends(get_db),
     action: AuditAction | None = Query(None),
     page: int = Query(1, ge=1),

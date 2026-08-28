@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.db import get_db
 from app.core.exceptions import ForbiddenError, UnauthorizedError
 from app.core.security import decode_token
+from app.modules.admin.permissions import AdminModule, role_can
 from app.modules.users import service as users_service
 from app.modules.users.models import User, UserRole
 
@@ -48,6 +49,18 @@ def require_role(*roles: UserRole):
     def checker(user: CurrentUser) -> User:
         if user.role not in roles:
             raise ForbiddenError(f"Bu amal uchun {', '.join(r.value for r in roles)} roli kerak")
+        return user
+
+    return checker
+
+
+def require_admin_module(module: AdminModule):
+    """ADMIN ekanini (birinchi qatlam) va shu admin_role panelning shu
+    bo'limiga (`module`) kira olishini (ikkinchi qatlam) tekshiradi."""
+
+    def checker(user: Annotated[User, Depends(require_role(UserRole.ADMIN))]) -> User:
+        if not role_can(user.admin_role, module):
+            raise ForbiddenError("Bu bo'limga kirish huquqingiz yo'q")
         return user
 
     return checker

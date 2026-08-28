@@ -55,11 +55,13 @@ class TestInviteAdmin:
                 "surname": "Admin",
                 "phone": "998922200002",
                 "password": "password123",
+                "admin_role": "moderator",
             },
             headers=admin_headers,
         )
         assert resp.status_code == 201, resp.text
         assert resp.json()["role"] == "ADMIN"
+        assert resp.json()["admin_role"] == "moderator"
 
         login_resp = await client.post(
             "/api/v1/auth/login",
@@ -75,6 +77,7 @@ class TestInviteAdmin:
                 "surname": "Admin",
                 "phone": "998922200003",
                 "password": "password123",
+                "admin_role": "moderator",
             },
             headers=b2b_headers,
         )
@@ -137,6 +140,7 @@ class TestBanUnban:
                 "surname": "Admin",
                 "phone": "998922200006",
                 "password": "password123",
+                "admin_role": "moderator",
             },
             headers=admin_headers,
         )
@@ -224,3 +228,167 @@ class TestUserListing:
         assert resp.status_code == 200, resp.text
         body = resp.json()
         assert any(u["phone"] == "998922200010" for u in body["items"])
+
+
+async def _invite_admin(
+    client: AsyncClient, admin_headers: dict, phone: str, admin_role: str = "moderator"
+) -> dict:
+    resp = await client.post(
+        "/api/v1/admin/users/invite-admin",
+        json={
+            "name": "Test",
+            "surname": "Admin",
+            "phone": phone,
+            "password": "password123",
+            "admin_role": admin_role,
+        },
+        headers=admin_headers,
+    )
+    assert resp.status_code == 201, resp.text
+    return resp.json()
+
+
+class TestAdminRoleManagement:
+    async def test_super_can_change_admin_role(self, client: AsyncClient, admin_headers: dict):
+        target = await _invite_admin(client, admin_headers, "998922200011", "moderator")
+
+        resp = await client.patch(
+            f"/api/v1/admin/users/{target['id']}/admin-role",
+            json={"admin_role": "finance"},
+            headers=admin_headers,
+        )
+        assert resp.status_code == 200, resp.text
+        assert resp.json()["admin_role"] == "finance"
+
+    async def test_non_super_cannot_change_admin_role(
+        self, client: AsyncClient, admin_headers: dict, moderator_headers: dict
+    ):
+        target = await _invite_admin(client, admin_headers, "998922200012", "content")
+
+        resp = await client.patch(
+            f"/api/v1/admin/users/{target['id']}/admin-role",
+            json={"admin_role": "finance"},
+            headers=moderator_headers,
+        )
+        assert resp.status_code == 403
+
+    async def test_super_cannot_change_own_role(
+        self, client: AsyncClient, admin_headers: dict, admin_user
+    ):
+        resp = await client.patch(
+            f"/api/v1/admin/users/{admin_user.id}/admin-role",
+            json={"admin_role": "moderator"},
+            headers=admin_headers,
+        )
+        assert resp.status_code == 403
+
+    async def test_two_supers_second_can_demote_first(
+        self, client: AsyncClient, admin_headers: dict, admin_user
+    ):
+        # Ikkinchi super qo'shamiz — endi ikkita super bor: admin_user, second_super.
+        await _invite_admin(client, admin_headers, "998922200013", "super")
+        login_resp = await client.post(
+            "/api/v1/auth/login",
+            json={"identifier": "998922200013", "password": "password123"},
+        )
+        second_super_headers = {"Authorization": f"Bearer {login_resp.json()['access_token']}"}
+
+        # second_super ASL admin_userni pasaytiradi — ikkita super bor edi,
+        # bu OK (yagona-super qoidasi ishga tushmaydi).
+        demote_resp = await client.patch(
+            f"/api/v1/admin/users/{admin_user.id}/admin-role",
+            json={"admin_role": "moderator"},
+            headers=second_super_headers,
+        )
+        assert demote_resp.status_code == 200, demote_resp.text
+        assert demote_resp.json()["admin_role"] == "moderator"
+
+
+class TestAdminDeletion:
+    async def test_super_can_delete_admin(self, client: AsyncClient, admin_headers: dict):
+        target = await _invite_admin(client, admin_headers, "998922200020", "content")
+
+        resp = await client.delete(
+            f"/api/v1/admin/users/{target['id']}", headers=admin_headers
+        )
+        assert resp.status_code == 204
+
+        # O'chirilgan admin bilan login endi ishlamasligi kerak
+        login_resp = await client.post(
+            "/api/v1/auth/login",
+            json={"identifier": "998922200020", "password": "password123"},
+        )
+        assert login_resp.status_code == 401
+
+    async def test_cannot_delete_self(self, client: AsyncClient, admin_headers: dict, admin_user):
+        resp = await client.delete(
+            f"/api/v1/admin/users/{admin_user.id}", headers=admin_headers
+        )
+        assert resp.status_code == 403
+
+    async def test_non_super_cannot_delete_admin(
+        self, client: AsyncClient, admin_headers: dict, moderator_headers: dict
+    ):
+        target = await _invite_admin(client, admin_headers, "998922200021", "content")
+
+        resp = await client.delete(
+            f"/api/v1/admin/users/{target['id']}", headers=moderator_headers
+        )
+        assert resp.status_code == 403
+
+    async def test_cannot_delete_last_super(
+        self, client: AsyncClient, admin_headers: dict, admin_user
+    ):
+        # Ikkinchi super qo'shib, u orqali ASL admin_userni (birinchi super)
+        # o'chirishga urinamiz — admin_user shu paytda YAGONA super emas
+        # (second_super ham bor), shuning uchun bu qadam OK bo'ladi va
+        # second_super yagona super bo'lib qoladi.
+        second_super = await _invite_admin(client, admin_headers, "998922200022", "super")
+        login_resp = await client.post(
+            "/api/v1/auth/login",
+            json={"identifier": "998922200022", "password": "password123"},
+        )
+        second_super_headers = {"Authorization": f"Bearer {login_resp.json()['access_token']}"}
+
+        del_resp = await client.delete(
+            f"/api/v1/admin/users/{admin_user.id}", headers=second_super_headers
+        )
+        assert del_resp.status_code == 204
+
+        # Endi second_super yagona super. O'zini o'zi o'chirishga urinadi —
+        # "o'zini o'chira olmaydi" qoidasi ConflictError'dan oldin
+        # tekshiriladi, shuning uchun javob 403 (yagona-super ConflictError
+        # qoidasi service kodida qoladi — `_count_supers` orqali; HTTP
+        # darajasida uni ikkita mustaqil admin bilan keltirib chiqarish
+        # mumkin emas, chunki harakat qiluvchi super har doim nishondan
+        # tashqari hisoblanadi va bu holatda kamida 2 ta super bor bo'lib
+        # chiqadi — shart hech qachon HTTP orqali ikki-actor holatida
+        # bajarilmaydi, faqat "o'zini o'chirish" yo'lida amalda ishlaydi).
+        self_resp = await client.delete(
+            f"/api/v1/admin/users/{second_super['id']}", headers=second_super_headers
+        )
+        assert self_resp.status_code == 403
+
+
+class TestModuleEnforcement:
+    async def test_moderator_can_access_users_module(
+        self, client: AsyncClient, moderator_headers: dict
+    ):
+        resp = await client.get("/api/v1/admin/users", headers=moderator_headers)
+        assert resp.status_code == 200
+
+    async def test_moderator_cannot_invite_admin(
+        self, client: AsyncClient, moderator_headers: dict
+    ):
+        resp = await client.post(
+            "/api/v1/admin/users/invite-admin",
+            json={
+                "name": "X",
+                "surname": "Y",
+                "phone": "998922200030",
+                "password": "password123",
+                "admin_role": "content",
+            },
+            headers=moderator_headers,
+        )
+        assert resp.status_code == 403

@@ -1222,6 +1222,54 @@ tekshiruv QILINMADI (bu sessiyada ham Playwright yo'q edi).
   birortasi ham rasman qilinmagan).
 - Haqiqiy cursor-based sahifalash.
 
+### Admin rol darajalari qo'shildi (2026-08-28, keyingi sessiya)
+
+Frontend audit (Explore agent) shuni ko'rsatdi: `AdminTeam.tsx`da to'rt
+darajali rol tizimi (`super`/`moderator`/`finance`/`content`, `ROLE_MATRIX`
+— qaysi rol qaysi panel bo'limiga kira oladi) bor edi, lekin to'liq lokal
+(backend'da bitta `ADMIN` roli). 2026-07-30 spec buni ataylab **doiradan
+tashqari** qoldirgan edi ("frontendda ham yo'q" — bu noto'g'ri edi, aslida
+bor ekan, tadqiqot yetarli chuqur bo'lmagan). Foydalanuvchi bilan qaror
+qilindi: soddalashtirilmaydi, **backend'ga ko'chiriladi** — bu allaqachon
+frontendda ishlab chiqilgan, mazmunli xavfsizlik modeli.
+
+`User.admin_role` (nullable, faqat `role==ADMIN`da mazmunli) qo'shildi,
+CHECK constraint bilan (`role='ADMIN'` bo'lmasa NULL bo'lishi shart —
+Tours'dagi `ck_tours_exactly_one_owner_profile` naqshi). `ROLE_MATRIX`
+`app/modules/admin/permissions.py`da statik Python dict (`plans/catalog.py`
+naqshi — DB jadvali emas, deploy paytida biladigan qat'iy to'plam).
+`require_admin_module(module)` — `require_role(ADMIN)` ustiga qo'shiladigan
+ikkinchi qatlam, har bir `/admin/*` endpoint o'z moduliga (masalan
+`dashboard`→`analytics`, `users`/`ban`/`unban`→`users`, `invite-admin`→
+`team`) mos dependency ishlatadi. Yangi: `PATCH /admin/users/{id}/admin-role`
+va `DELETE /admin/users/{id}` (ikkalasi ham faqat `super`, o'z-o'ziga
+tegib bo'lmaydi, yagona superni pasaytirib/o'chirib bo'lmaydi — 409).
+
+**Yon-topilma**: `DELETE /admin/users/{id}` `AdminAuditLog.admin_id` FK
+bilan to'qnashardi (o'chirilgan admin avval audit yozuv qoldirgan bo'lsa
+FK-buzilish, xom 500) — `admin_id` `ondelete="SET NULL"` bilan nullable
+qilindi (audit tarixi saqlanadi, "kim qilgani" yo'qoladi, "nima qilingani"
+qoladi). Ikkinchi migratsiya shu tuzatish + yangi audit action'lar
+(`admin_role_change`/`admin_delete`, `ALTER TYPE ... ADD VALUE` qo'lda —
+autogenerate Postgres enum qiymatlarini aniqlamaydi, avvalgi modullardagi
+bilan bir xil muammo) uchun.
+
+Ma'lumot migratsiyasi: mavjud ADMIN'lar orasidan eng birinchi yaratilgani
+`super`, qolganlari xavfsiz sukut `moderator`. `tests/test_admin_role_migration.py`
+— bu SQL mantig'ini Alembic runner'siz sinaydi (test DB `create_all`dan
+quriladi, migratsiya orqali emas). `tests/test_admin_permissions.py` —
+`role_can()`ni HTTP'siz to'g'ridan-to'g'ri (dependency-darajasida, `finance`
+moduliga hali endpoint yo'qligi sababli HTTP orqali sinab bo'lmaydi).
+
+Frontend ulash (spec'ning "Frontend o'zgarishlar" bo'limi — `adminUsers.ts`
+store, `AdminUsersControl.tsx`/`AdminTeam.tsx`/`AdminActivityLog.tsx` qayta
+ulash, `store/auth.ts`dagi o'lik admin funksiyalarini o'chirish) — hali
+qilinmagan, keyingi sessiya shundan boshlanadi. Spec:
+`docs/superpowers/specs/2026-08-28-admin-roles-frontend-integration-design.md`.
+23+7+2=32 yangi test, mavjud testlarga regressiya yo'q (2 ta oldindan
+mavjud, ishimizdan mustaqil sana-sezgir `test_bookings.py` xatoligi bor —
+`_next_monday()` joriy oyga bog'liq, tuzatilmadi).
+
 ## Agent skills
 
 ### Issue tracker
