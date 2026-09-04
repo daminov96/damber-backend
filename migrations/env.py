@@ -16,6 +16,7 @@ from app.modules.chat.models import (  # noqa: F401 -- Base.metadata ni to'ldiri
     Conversation,
     Message,
 )
+from app.modules.favorites.models import Favorite  # noqa: F401 -- Base.metadata ni to'ldirish uchun
 from app.modules.guides.models import (  # noqa: F401 -- Base.metadata ni to'ldirish uchun
     Guide,
     GuidePhoto,

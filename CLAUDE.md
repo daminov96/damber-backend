@@ -1270,6 +1270,41 @@ qilinmagan, keyingi sessiya shundan boshlanadi. Spec:
 mavjud, ishimizdan mustaqil sana-sezgir `test_bookings.py` xatoligi bor —
 `_next_monday()` joriy oyga bog'liq, tuzatilmadi).
 
+### Yangi `favorites` moduli qo'shildi (2026-09-04, mobile jamoa so'roviga javoban)
+
+Mobile jamoa "Sevimlilar" (saqlangan e'lonlar) haqida so'radi — tekshiruv
+shuni ko'rsatdi: frontendda (`src/store/auth.ts::toggleFavorite`) bu
+faqat mock `users` do'konining `favorites: string[]` maydonida, hech
+qachon backend'ga yuborilmagan (localStorage-only, qurilmalar orasida
+sinxronlanmaydi). Foydalanuvchi bilan kelishilgan: **backend'ga real
+modul sifatida qo'shildi**, faqat `Listing` uchun (operator/tour/guide
+kabi boshqa turlar doiradan tashqarida — frontendda ular allaqachon
+alohida `savedOperators.ts` bilan ajratilgan, aralashtirilmadi).
+
+**Yangi `favorites` moduli** — eng oddiy vertical-slice (Reviews'ning
+"lean" varianti): `Favorite(id, user_id, listing_id, created_at)`,
+`UniqueConstraint(user_id, listing_id)` (bir xil e'lonni ikki marta
+qo'shib bo'lmaydi — servis darajasida oldindan tekshirilib toza 409
+qaytaradi, xom `IntegrityError` emas), `listing_id` FK
+`ondelete="CASCADE"` (listing o'chirilsa uning sevimli yozuvlari ham
+avtomatik o'chadi — DB darajasida, ORM'da qo'shimcha kod shart emas,
+testda tasdiqlangan). Uch endpoint: `POST /favorites`
+(`{listing_id}`), `GET /favorites` (sahifalangan, faqat joriy
+foydalanuvchining o'zi — Reviews'dagi `list_mine()` naqshi), `DELETE
+/favorites/{listing_id}` (404 agar mavjud bo'lmasa).
+
+TDD skill orqali qurildi (seam: HTTP endpoint darajasi, `AsyncClient` —
+loyihadagi barcha mavjud testlar bilan bir xil), har bir endpoint alohida
+qizil→yashil tsiklda. 7 yangi test (`tests/test_favorites.py`) — qo'shish,
+duplikat-409, ro'yxat (faqat o'ziniki), o'chirish, o'chirish-404,
+listing-o'chirilganda-kaskad-tozalash. Migratsiya `c98eac218cec`. Jami
+240 test o'tdi (regressiyasiz), `ruff` toza.
+
+**Doiradan tashqari qoldirilgan** (keyingi bosqich, agar kerak bo'lsa):
+operator/tour/guide uchun sevimlilar, frontend (web va mobile)
+integratsiyasi — bu ish faqat backend API'ni yaratdi, hali hech qanday
+klient ulanmagan.
+
 ## Agent skills
 
 ### Issue tracker
