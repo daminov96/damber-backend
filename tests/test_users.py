@@ -47,6 +47,54 @@ class TestRegister:
         assert me_resp.status_code == 200, me_resp.text
         assert me_resp.json()["biz_category"] == "Dala hovli / Kurort"
 
+    async def test_register_with_email_only_no_phone(self, client: AsyncClient):
+        resp = await client.post(
+            "/api/v1/auth/register",
+            json={
+                "name": "Chet",
+                "surname": "Ellik",
+                "email": "tourist-email-only@example.com",
+                "password": "password123",
+                "role": "B2C",
+            },
+        )
+        assert resp.status_code == 200, resp.text
+        headers = {"Authorization": f"Bearer {resp.json()['access_token']}"}
+        me_resp = await client.get("/api/v1/users/me", headers=headers)
+        assert me_resp.status_code == 200, me_resp.text
+        assert me_resp.json()["phone"] is None
+        assert me_resp.json()["email"] == "tourist-email-only@example.com"
+
+    async def test_register_without_phone_or_email_returns_422(self, client: AsyncClient):
+        resp = await client.post(
+            "/api/v1/auth/register",
+            json={"name": "Hech", "surname": "Kim", "password": "password123", "role": "B2C"},
+        )
+        assert resp.status_code == 422
+
+    async def test_duplicate_email_only_returns_409(self, client: AsyncClient):
+        await client.post(
+            "/api/v1/auth/register",
+            json={
+                "name": "Birinchi",
+                "surname": "User",
+                "email": "dup-email-only@example.com",
+                "password": "password123",
+                "role": "B2C",
+            },
+        )
+        resp = await client.post(
+            "/api/v1/auth/register",
+            json={
+                "name": "Ikkinchi",
+                "surname": "User",
+                "email": "dup-email-only@example.com",
+                "password": "password123",
+                "role": "B2C",
+            },
+        )
+        assert resp.status_code == 409
+
 
 class TestLogin:
     async def test_login_with_correct_password(self, client: AsyncClient):
@@ -65,6 +113,23 @@ class TestLogin:
             json={"identifier": "998911100005", "password": "wrongpass"},
         )
         assert resp.status_code == 401
+
+    async def test_login_email_only_account_with_email(self, client: AsyncClient):
+        await client.post(
+            "/api/v1/auth/register",
+            json={
+                "name": "Login",
+                "surname": "Email",
+                "email": "login-email-only@example.com",
+                "password": "password123",
+                "role": "B2C",
+            },
+        )
+        resp = await client.post(
+            "/api/v1/auth/login",
+            json={"identifier": "login-email-only@example.com", "password": "password123"},
+        )
+        assert resp.status_code == 200, resp.text
 
 
 class TestRefresh:

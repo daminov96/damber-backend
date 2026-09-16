@@ -40,12 +40,16 @@ class User(Base):
             "(role = 'ADMIN') OR (admin_role IS NULL)",
             name="ck_users_admin_role_only_for_admin",
         ),
+        CheckConstraint(
+            "(phone IS NOT NULL) OR (email IS NOT NULL)",
+            name="ck_users_phone_or_email",
+        ),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     name: Mapped[str] = mapped_column(String(100))
     surname: Mapped[str] = mapped_column(String(100))
-    phone: Mapped[str] = mapped_column(String(20), unique=True, index=True)
+    phone: Mapped[str | None] = mapped_column(String(20), unique=True, index=True, nullable=True)
     email: Mapped[str | None] = mapped_column(String(255), unique=True, index=True, nullable=True)
     password_hash: Mapped[str] = mapped_column(String(255))
     role: Mapped[UserRole] = mapped_column(Enum(UserRole, name="user_role"), default=UserRole.B2C)

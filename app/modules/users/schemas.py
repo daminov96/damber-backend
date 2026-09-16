@@ -1,7 +1,7 @@
 import uuid
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, model_validator
 
 from app.modules.users.models import AdminRole, UserRole
 
@@ -9,11 +9,17 @@ from app.modules.users.models import AdminRole, UserRole
 class RegisterRequest(BaseModel):
     name: str
     surname: str
-    phone: str
     password: str = Field(min_length=6)
     role: Literal[UserRole.B2C, UserRole.B2B] = UserRole.B2C
+    phone: str | None = None
     email: EmailStr | None = None
     biz_category: str | None = None
+
+    @model_validator(mode="after")
+    def _phone_or_email(self) -> "RegisterRequest":
+        if not self.phone and not self.email:
+            raise ValueError("Telefon raqam yoki email kiriting")
+        return self
 
 
 class LoginRequest(BaseModel):
@@ -37,7 +43,7 @@ class UserOut(BaseModel):
     id: uuid.UUID
     name: str
     surname: str
-    phone: str
+    phone: str | None
     email: str | None
     role: UserRole
     wallet_balance: float

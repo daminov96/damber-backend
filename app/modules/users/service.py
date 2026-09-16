@@ -19,11 +19,8 @@ async def get_by_id(db: AsyncSession, user_id: str) -> User | None:
 
 async def _find_by_identifier(db: AsyncSession, identifier: str) -> User | None:
     digits = _normalize_phone(identifier)
-    stmt = select(User).where(
-        (User.phone == digits) if len(digits) >= 9 else False,
-    )
     if len(digits) >= 9:
-        result = await db.execute(stmt)
+        result = await db.execute(select(User).where(User.phone == digits))
         user = result.scalar_one_or_none()
         if user:
             return user
@@ -32,16 +29,23 @@ async def _find_by_identifier(db: AsyncSession, identifier: str) -> User | None:
 
 
 async def register(db: AsyncSession, payload: RegisterRequest) -> User:
-    phone = _normalize_phone(payload.phone)
-    existing = await db.execute(select(User).where(User.phone == phone))
-    if existing.scalar_one_or_none():
-        raise ConflictError("Bu telefon raqam allaqachon ro'yxatdan o'tgan")
+    phone = _normalize_phone(payload.phone) if payload.phone else None
+    email = payload.email.lower() if payload.email else None
+
+    if phone:
+        existing = await db.execute(select(User).where(User.phone == phone))
+        if existing.scalar_one_or_none():
+            raise ConflictError("Bu telefon raqam allaqachon ro'yxatdan o'tgan")
+    if email:
+        existing = await db.execute(select(User).where(User.email == email))
+        if existing.scalar_one_or_none():
+            raise ConflictError("Bu email allaqachon boshqa hisobga bog'langan")
 
     user = User(
         name=payload.name,
         surname=payload.surname,
         phone=phone,
-        email=payload.email,
+        email=email,
         password_hash=hash_password(payload.password),
         role=payload.role,
         biz_category=payload.biz_category,
